@@ -18,8 +18,8 @@ if [[ "$ACTION" == "list" ]]; then
 else
   SCRIPT="$REPO_ROOT/kwin/adjust-opacity.js"
   case "$ACTION" in
-    decrease) STEP="-0.05" ;;
-    increase) STEP="0.05" ;;
+    decrease) STEP="-0.025" ;;
+    increase) STEP="0.025" ;;
     *) echo "unknown action: $ACTION" >&2; exit 1 ;;
   esac
 fi
@@ -45,7 +45,7 @@ TMP="$(mktemp "/tmp/diffuse-kwin-${SCRIPT_VERSION}-XXXXXX.js")"
 trap 'rm -f "$TMP"' EXIT
 
 if [[ -n "$STEP" ]]; then
-  sed "s/step: -0.05/step: ${STEP}/" "$SCRIPT" > "$TMP"
+  sed "s/const DIFFUSE = { step: -0.025, min: 0.25, max: 1.0 };/const DIFFUSE = { step: ${STEP}, min: 0.25, max: 1.0 };/" "$SCRIPT" > "$TMP"
 else
   cp "$SCRIPT" "$TMP"
 fi

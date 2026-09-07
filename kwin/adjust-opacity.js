@@ -6,14 +6,10 @@
 //   1. activeWindow if it matches an editor resourceClass
 //   2. focused editor window in windowList
 //   3. any matching editor window (single-window fallback)
-//
-// DIFFUSE.step is injected at materialize time (default -0.05 in source).
 
-const DIFFUSE = {
-  step: -0.05,
-  min: 0.25,
-  max: 1.0,
-};
+// --- diffuse params (injected) ---
+const DIFFUSE = { step: -0.025, min: 0.25, max: 1.0 };
+// --- end diffuse params ---
 
 const EDITOR_CLASSES = ["cursor", "code", "vscodium", "code-oss"];
 

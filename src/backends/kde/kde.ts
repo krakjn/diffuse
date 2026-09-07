@@ -1,6 +1,7 @@
 import type { ExtensionContext } from "vscode";
 import type { AdjustResult, OpacityBackend } from "../types";
 import { isKwinAvailable, runKwinScript } from "./kwin-runner";
+import { KWIN_SCRIPT_VERSION } from "./kwin-version";
 
 export class KdeBackend implements OpacityBackend {
   readonly id = "kde" as const;
@@ -20,5 +21,9 @@ export class KdeBackend implements OpacityBackend {
       { extensionPath: this.context.extensionPath },
       { step, min, max }
     );
+  }
+
+  get scriptVersion(): number {
+    return KWIN_SCRIPT_VERSION;
   }
 }

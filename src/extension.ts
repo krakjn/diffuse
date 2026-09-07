@@ -1,10 +1,9 @@
 import * as vscode from "vscode";
-import { GnomeBackend } from "./backends/gnome";
-import { HyprlandBackend } from "./backends/hyprland";
-import { KdeBackend } from "./backends/kde/kde";
-import { BackendRegistry } from "./backends/registry";
-import { KWIN_SCRIPT_VERSION } from "./backends/types";
+import { createBackendRegistry } from "./backends/index";
+import type { BackendRegistry } from "./backends/registry";
+import type { DetectResult } from "./backends/types";
 import { detectEnvironment } from "./detect";
+import { statusBarTooltip } from "./messages";
 import {
   adjustOpacity,
   getDetectionSummary,
@@ -12,100 +11,102 @@ import {
   getStoredOpacity,
 } from "./opacity";
 
-let statusBarItem: vscode.StatusBarItem | undefined;
-let outputChannel: vscode.OutputChannel | undefined;
-let registry: BackendRegistry | undefined;
-let detected = detectEnvironment();
+class DiffuseContext {
+  readonly output = vscode.window.createOutputChannel("Diffuse");
+  readonly registry: BackendRegistry;
+  detected: DetectResult;
+  private statusBarItem?: vscode.StatusBarItem;
 
-export async function activate(context: vscode.ExtensionContext): Promise<void> {
-  outputChannel = vscode.window.createOutputChannel("Diffuse");
-  registry = new BackendRegistry();
-  registry.register(new KdeBackend(context));
-  registry.register(new GnomeBackend());
-  registry.register(new HyprlandBackend());
+  constructor(private readonly context: vscode.ExtensionContext) {
+    this.registry = createBackendRegistry(context);
+    this.detected = detectEnvironment();
+  }
 
-  detected = detectEnvironment();
-  outputChannel.appendLine(getDetectionSummary(detected));
-  outputChannel.appendLine(`KWin script version ${KWIN_SCRIPT_VERSION}`);
-  outputChannel.appendLine(`stored opacity ${getStoredOpacity(context)}`);
+  activate(): void {
+    this.output.appendLine(getDetectionSummary(this.detected));
+    this.output.appendLine(`stored opacity ${getStoredOpacity(this.context)}`);
+    this.updateStatusBar();
 
-  updateStatusBar(context);
+    this.context.subscriptions.push(
+      this.output,
+      vscode.commands.registerCommand("diffuse.decreaseOpacity", () =>
+        this.runAdjust("decrease")
+      ),
+      vscode.commands.registerCommand("diffuse.increaseOpacity", () =>
+        this.runAdjust("increase")
+      ),
+      vscode.commands.registerCommand("diffuse.showEnvironment", () => {
+        this.detected = detectEnvironment();
+        this.output.show(true);
+        this.output.appendLine(getDetectionSummary(this.detected));
+      }),
+      vscode.workspace.onDidChangeConfiguration((event) => {
+        if (event.affectsConfiguration("diffuse")) {
+          this.updateStatusBar();
+        }
+      })
+    );
+  }
 
-  context.subscriptions.push(
-    outputChannel,
-    vscode.commands.registerCommand("diffuse.decreaseOpacity", () =>
-      runAdjust(context, "decrease")
-    ),
-    vscode.commands.registerCommand("diffuse.increaseOpacity", () =>
-      runAdjust(context, "increase")
-    ),
-    vscode.commands.registerCommand("diffuse.showEnvironment", () => {
-      outputChannel?.show(true);
-      outputChannel?.appendLine(getDetectionSummary(detectEnvironment()));
-    }),
-    vscode.workspace.onDidChangeConfiguration((event) => {
-      if (event.affectsConfiguration("diffuse")) {
-        updateStatusBar(context);
+  private async runAdjust(direction: "increase" | "decrease"): Promise<void> {
+    this.detected = detectEnvironment();
+
+    try {
+      const after = await adjustOpacity(
+        this.context,
+        this.registry,
+        this.detected,
+        direction,
+        this.output
+      );
+      if (after !== null) {
+        this.updateStatusBar(after);
       }
-    })
-  );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.output.appendLine(`error: ${message}`);
+      vscode.window.showWarningMessage(`Diffuse: ${message}`);
+    }
+  }
+
+  updateStatusBar(opacity?: number): void {
+    const { showStatusBar } = getOpacityConfig();
+    if (!showStatusBar) {
+      this.statusBarItem?.hide();
+      return;
+    }
+
+    if (!this.statusBarItem) {
+      this.statusBarItem = vscode.window.createStatusBarItem(
+        vscode.StatusBarAlignment.Right,
+        100
+      );
+      this.statusBarItem.command = "diffuse.showEnvironment";
+      this.context.subscriptions.push(this.statusBarItem);
+    }
+
+    const currentOpacity = opacity ?? getStoredOpacity(this.context);
+    const pct = Math.round(currentOpacity * 100);
+
+    if (this.detected.supported) {
+      this.statusBarItem.text = `$(eye) Diffuse: ${this.detected.displayName} ${pct}%`;
+      this.statusBarItem.tooltip = statusBarTooltip(this.detected, pct);
+    } else {
+      this.statusBarItem.text = `$(eye) Diffuse: ${this.detected.displayName} (unsupported)`;
+      this.statusBarItem.tooltip = statusBarTooltip(this.detected);
+    }
+
+    this.statusBarItem.show();
+  }
+}
+
+let diffuse: DiffuseContext | undefined;
+
+export function activate(context: vscode.ExtensionContext): void {
+  diffuse = new DiffuseContext(context);
+  diffuse.activate();
 }
 
 export function deactivate(): void {
-  statusBarItem?.dispose();
-}
-
-async function runAdjust(
-  context: vscode.ExtensionContext,
-  direction: "increase" | "decrease"
-): Promise<void> {
-  if (!registry || !outputChannel) {
-    return;
-  }
-
-  detected = detectEnvironment();
-
-  try {
-    const after = await adjustOpacity(
-      context,
-      registry,
-      detected,
-      direction,
-      outputChannel
-    );
-    if (after !== null) {
-      updateStatusBar(context, after);
-    }
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    outputChannel.appendLine(`error: ${message}`);
-    vscode.window.showWarningMessage(`Diffuse: ${message}`);
-  }
-}
-
-function updateStatusBar(
-  context: vscode.ExtensionContext,
-  opacity?: number
-): void {
-  const { showStatusBar } = getOpacityConfig();
-  if (!showStatusBar) {
-    statusBarItem?.hide();
-    return;
-  }
-
-  if (!statusBarItem) {
-    statusBarItem = vscode.window.createStatusBarItem(
-      vscode.StatusBarAlignment.Right,
-      100
-    );
-    context.subscriptions.push(statusBarItem);
-  }
-
-  const currentOpacity = opacity ?? getStoredOpacity(context);
-  const pct = Math.round(currentOpacity * 100);
-  const support = detected.supported ? "" : " (unsupported)";
-  statusBarItem.text = `$(eye) Diffuse: ${detected.displayName}${support} ${pct}%`;
-  statusBarItem.tooltip = `Diffuse opacity ${pct}% — KWin script v${KWIN_SCRIPT_VERSION}`;
-  statusBarItem.command = "diffuse.showEnvironment";
-  statusBarItem.show();
+  diffuse = undefined;
 }

@@ -1,63 +1,28 @@
-# Diffuse — common tasks
-#
-# List recipes:  just
-# Package VSIX:   just package
-# Publish:       OVSX_PAT=... just publish
-
-default:
+_:
     @just --list
 
-# --- KWin harness (phase -1, KDE Plasma Wayland) ---
+# build Docker image
+img:
+    docker build -t diffuse-builder .
 
-kwin-list:
-    ./scripts/run-kwin.sh list
-
-kwin-decrease:
-    ./scripts/run-kwin.sh decrease
-
-kwin-increase:
-    ./scripts/run-kwin.sh increase
-
-# --- Docker (no host npm required) ---
-
-docker-build:
-    docker compose build
-
-package: docker-build
-    mkdir -p dist
-    docker compose run --rm package
-
-publish: docker-build
+# package VSIX to dist/
+build: img
     #!/usr/bin/env bash
     set -euo pipefail
-    if [[ -z "${OVSX_PAT:-}" ]]; then
-      echo "OVSX_PAT is required. Example: OVSX_PAT=... just publish" >&2
+    mkdir -p dist
+    docker run --rm \
+      -v "$(pwd):/work" \
+      -v diffuse-node-modules:/work/node_modules \
+      -w /work \
+      diffuse-builder
+
+# install VSIX into Cursor
+install:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    vsix=(dist/diffuse-*.vsix)
+    if [[ ! -f "${vsix[0]}" ]]; then
+      echo "No VSIX found. Run: just build" >&2
       exit 1
     fi
-    mkdir -p dist
-    docker compose run --rm publish
-
-docker-compile: docker-build
-    docker compose run --rm package compile
-
-docker-shell: docker-build
-    docker compose run --rm package shell
-
-# --- Host npm (optional) ---
-
-install:
-    npm install
-
-compile: install
-    npm run compile
-
-watch: install
-    npm run watch
-
-package-local: install compile
-    npm run package
-
-# --- Cleanup ---
-
-clean:
-    rm -rf out dist node_modules *.vsix
+    cursor --install-extension "${vsix[0]}"

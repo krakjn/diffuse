@@ -1,27 +1,22 @@
 import * as fs from "fs/promises";
 import * as os from "os";
 import * as path from "path";
-import { execFile } from "child_process";
-import { promisify } from "util";
 import type { AdjustResult } from "../types";
-import { KWIN_SCRIPT_VERSION } from "../types";
+import { KWIN_SCRIPT_VERSION } from "./kwin-version";
+import { commandExists, execCommand } from "../../util/exec";
 
-const execFileAsync = promisify(execFile);
-
-const STEP_PLACEHOLDER = "step: -0.05";
+const PARAMS_MARKER =
+  /\/\/ --- diffuse params \(injected\) ---[\s\S]*?\/\/ --- end diffuse params ---/;
 
 export interface KwinRunnerOptions {
   extensionPath: string;
   scriptName?: "adjust-opacity.js" | "list-windows.js";
 }
 
-async function commandExists(command: string): Promise<boolean> {
-  try {
-    await execFileAsync("sh", ["-c", `command -v ${command}`]);
-    return true;
-  } catch {
-    return false;
-  }
+export interface KwinParams {
+  step: number;
+  min: number;
+  max: number;
 }
 
 export async function resolveQdbus(): Promise<string | null> {
@@ -41,9 +36,41 @@ function parseDiffuseOutput(raw: string): string[] {
     .map((line) => line.replace(/^js: DIFFUSE:/, "").replace(/^DIFFUSE:/, ""));
 }
 
+function parseAdjustOutput(raw: string): AdjustResult | null {
+  for (const line of parseDiffuseOutput(raw).reverse()) {
+    if (line.startsWith("ERROR:")) {
+      throw new Error(line.replace(/^ERROR:/, ""));
+    }
+    try {
+      const parsed = JSON.parse(line) as AdjustResult;
+      if (
+        typeof parsed.before === "number" &&
+        typeof parsed.after === "number"
+      ) {
+        return parsed;
+      }
+    } catch {
+      continue;
+    }
+  }
+  return null;
+}
+
+function injectParams(source: string, params: KwinParams): string {
+  const block = `// --- diffuse params (injected) ---
+const DIFFUSE = { step: ${params.step}, min: ${params.min}, max: ${params.max} };
+// --- end diffuse params ---`;
+
+  if (!PARAMS_MARKER.test(source)) {
+    throw new Error("KWin script missing diffuse params marker block");
+  }
+
+  return source.replace(PARAMS_MARKER, block);
+}
+
 export async function runKwinScript(
   options: KwinRunnerOptions,
-  params: { step: number; min: number; max: number }
+  params: KwinParams
 ): Promise<AdjustResult> {
   const qdbus = await resolveQdbus();
   if (!qdbus) {
@@ -53,21 +80,17 @@ export async function runKwinScript(
   const scriptName = options.scriptName ?? "adjust-opacity.js";
   const sourcePath = path.join(options.extensionPath, "kwin", scriptName);
   const source = await fs.readFile(sourcePath, "utf8");
+  const materialized = injectParams(source, params);
 
   const tmpPath = path.join(
     os.tmpdir(),
     `diffuse-kwin-${KWIN_SCRIPT_VERSION}-${process.pid}-${Date.now()}.js`
   );
 
-  const materialized = source
-    .replace(STEP_PLACEHOLDER, `step: ${params.step}`)
-    .replace("min: 0.25", `min: ${params.min}`)
-    .replace("max: 1.0", `max: ${params.max}`);
-
   await fs.writeFile(tmpPath, materialized, "utf8");
 
   try {
-    const { stdout: loadReply } = await execFileAsync(qdbus, [
+    const loadReply = await execCommand(qdbus, [
       "org.kde.KWin",
       "/Scripting",
       "org.kde.kwin.Scripting.loadScript",
@@ -76,13 +99,13 @@ export async function runKwinScript(
 
     const num = loadReply.trim().replace(/^.*\/Script/, "") || loadReply.trim();
 
-    await execFileAsync(qdbus, [
+    await execCommand(qdbus, [
       "org.kde.KWin",
       `/Scripting/Script${num}`,
       "org.kde.kwin.Script.run",
     ]);
 
-    await execFileAsync(qdbus, [
+    await execCommand(qdbus, [
       "org.kde.KWin",
       `/Scripting/Script${num}`,
       "org.kde.kwin.Script.stop",
@@ -90,7 +113,7 @@ export async function runKwinScript(
 
     await new Promise((resolve) => setTimeout(resolve, 200));
 
-    const { stdout: journal } = await execFileAsync("journalctl", [
+    const journal = await execCommand("journalctl", [
       "_COMM=kwin_wayland",
       "-o",
       "cat",
@@ -98,17 +121,12 @@ export async function runKwinScript(
       "2 seconds ago",
     ]);
 
-    const lines = parseDiffuseOutput(journal);
-    const line = lines.at(-1);
-    if (!line) {
-      throw new Error("KWin script produced no output");
-    }
-    if (line.startsWith("ERROR:")) {
-      throw new Error(line.replace(/^ERROR:/, ""));
+    const result = parseAdjustOutput(journal);
+    if (!result) {
+      throw new Error("KWin script produced no adjust output");
     }
 
-    const parsed = JSON.parse(line) as AdjustResult;
-    return parsed;
+    return result;
   } finally {
     await fs.unlink(tmpPath).catch(() => undefined);
   }
@@ -123,7 +141,7 @@ export async function isKwinAvailable(): Promise<boolean> {
     return false;
   }
   try {
-    await execFileAsync(qdbus, ["org.kde.KWin", "/Scripting"]);
+    await execCommand(qdbus, ["org.kde.KWin", "/Scripting"]);
     return true;
   } catch {
     return false;

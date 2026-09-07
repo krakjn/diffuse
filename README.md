@@ -1,69 +1,36 @@
-# diffuse
+# Diffuse
 
-Adjust VS Code / Cursor window opacity on Linux.
+![Diffuse](assets/icon.png)
 
-## Phase 1: VS Code extension (KDE Plasma Wayland)
+Adjust editor window opacity on Linux with keyboard shortcuts.
 
-Ctrl+Alt+Z decreases opacity; Ctrl+Alt+C increases it.
+| Shortcut | Action |
+|----------|--------|
+| `Ctrl+Alt+Z` | Decrease opacity (more transparent) |
+| `Ctrl+Alt+C` | Increase opacity (more opaque) |
 
-## Docker build (no host npm required)
+The status bar shows your desktop environment and current opacity, for example `Diffuse: KDE Plasma 85%`.
 
-```bash
-just package                    # build image + write dist/*.vsix
-OVSX_PAT=<token> just publish   # package + publish to Open VSX
-just docker-build               # rebuild image only
-just                            # list all recipes
-```
+## Install
 
-Or manually:
+1. Build the VSIX: `just build` (see [Development](docs/DEVELOPMENT.md)).
+2. Install: `just install` (or `cursor --install-extension dist/diffuse-0.1.0.vsix`).
+3. **Reload Window** — `Ctrl+Shift+P` → **Developer: Reload Window** (required after first install).
+4. Confirm the status bar shows `Diffuse: …` and test the shortcuts above.
 
-```bash
-docker compose run --rm package
-export OVSX_PAT=<your-token>
-docker compose run --rm publish
-```
-
-### Development (host npm)
-
-```bash
-npm install
-npm run compile
-```
-
-Press **F5** in VS Code/Cursor to launch the Extension Development Host, or install the packaged VSIX from `dist/`:
-
-```bash
-docker compose run --rm package
-# Extensions → Install from VSIX → dist/diffuse-0.1.0.vsix
-```
-
-### Phase -1 harness (still available)
-
-```bash
-just kwin-list
-just kwin-decrease
-just kwin-increase
-```
-
-### KWin script layout
-
-```
-kwin/
-├── adjust-opacity.js   # @diffuse-kwin-script-version 1
-└── list-windows.js
-```
-
-No `v1/` folder until a second script version is needed. Version is tracked in the file header and `KWIN_SCRIPT_VERSION` in TypeScript.
-
-### Supported (v0.1.0)
+## Supported desktop environments
 
 | Desktop | Status |
 |---------|--------|
-| KDE Plasma Wayland | Yes |
-| GNOME Wayland | Phase 2 |
-| Hyprland | Phase 3 |
+| KDE Plasma Wayland | Supported |
+| GNOME Wayland | Planned |
+| Hyprland | Planned |
 
-### Target editors
+X11 sessions are not supported.
+
+## Supported editors
+
+Diffuse targets editor windows by `resourceClass`:
 
 | Editor | resourceClass |
 |--------|---------------|
@@ -71,3 +38,13 @@ No `v1/` folder until a second script version is needed. Version is tracked in t
 | VS Code | `code` |
 | VSCodium | `vscodium` |
 | Code-OSS | `code-oss` |
+
+## Development
+
+Build, package, publish, and contributor docs: [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
+
+Architecture and adding backends: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+
+## License
+
+MIT — see [LICENSE](LICENSE).

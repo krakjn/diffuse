@@ -2,6 +2,7 @@ import type { ExtensionContext, OutputChannel } from "vscode";
 import { workspace } from "vscode";
 import type { BackendRegistry } from "./backends/registry";
 import type { DetectResult, OpacityBackend } from "./backends/types";
+import { KdeBackend } from "./backends/kde/kde";
 import { detectEnvironment, resolveBackendId } from "./detect";
 import { unsupportedMessage } from "./messages";
 
@@ -18,7 +19,7 @@ export interface OpacityConfig {
 export function getOpacityConfig(): OpacityConfig {
   const config = workspace.getConfiguration("diffuse");
   return {
-    step: config.get<number>("step", 0.05),
+    step: config.get<number>("step", 0.025),
     minOpacity: config.get<number>("minOpacity", 0.25),
     maxOpacity: config.get<number>("maxOpacity", 1),
     backend: config.get<string>("backend", "auto"),
@@ -71,15 +72,19 @@ export async function adjustOpacity(
     `adjust ${direction} step=${signedStep} min=${minOpacity} max=${maxOpacity} backend=${backend.id}`
   );
 
-  const result = await backend.adjustOpacity(signedStep, minOpacity, maxOpacity);
+  if (backend instanceof KdeBackend) {
+    log.appendLine(`kwin script version ${backend.scriptVersion}`);
+  }
+
+  const result = await backend.adjustOpacity(
+    signedStep,
+    minOpacity,
+    maxOpacity
+  );
   await context.globalState.update(OPACITY_KEY, result.after);
   log.appendLine(`opacity ${result.before} -> ${result.after}`);
 
   return result.after;
-}
-
-export function clampOpacity(value: number, min: number, max: number): number {
-  return Math.max(min, Math.min(max, value));
 }
 
 export function getDetectionSummary(detected: DetectResult): string {

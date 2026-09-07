@@ -5,11 +5,36 @@
   "version": "0.1.0",
   "publisher": "krakjn",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/krakjn/diffuse.git"
+  },
+  "icon": "assets/icon.png",
   "engines": {
     "vscode": "^1.85.0"
   },
   "categories": ["Other"],
-  "activationEvents": [],
+  "keywords": [
+    "opacity",
+    "transparency",
+    "linux",
+    "wayland",
+    "kde",
+    "plasma",
+    "window"
+  ],
+  "galleryBanner": {
+    "color": "#1e2a3a",
+    "theme": "dark"
+  },
+  "extensionKind": ["ui"],
+  "capabilities": {
+    "virtualWorkspaces": false,
+    "untrustedWorkspaces": {
+      "supported": true
+    }
+  },
+  "activationEvents": ["onStartupFinished"],
   "main": "./out/extension.js",
   "contributes": {
     "commands": [
@@ -30,12 +55,12 @@
       {
         "command": "diffuse.decreaseOpacity",
         "key": "ctrl+alt+z",
-        "when": "editorTextFocus || !editorTextFocus"
+        "when": "isLinux && (editorTextFocus || !editorTextFocus)"
       },
       {
         "command": "diffuse.increaseOpacity",
         "key": "ctrl+alt+c",
-        "when": "editorTextFocus || !editorTextFocus"
+        "when": "isLinux && (editorTextFocus || !editorTextFocus)"
       }
     ],
     "configuration": {
@@ -43,7 +68,7 @@
       "properties": {
         "diffuse.step": {
           "type": "number",
-          "default": 0.05,
+          "default": 0.025,
           "minimum": 0.01,
           "maximum": 1,
           "description": "Opacity change per keypress."
@@ -80,10 +105,7 @@
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
     "vscode:prepublish": "npm run compile",
-    "package": "vsce package --no-dependencies --allow-missing-repository",
-    "docker:build": "docker build -t diffuse-builder .",
-    "docker:package": "mkdir -p dist && docker run --rm -v \"$(pwd)/dist:/out\" diffuse-builder",
-    "docker:publish": "mkdir -p dist && docker run --rm -e OVSX_PAT -v \"$(pwd)/dist:/out\" diffuse-builder publish"
+    "package": "vsce package --no-dependencies --allow-missing-repository --out dist"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",

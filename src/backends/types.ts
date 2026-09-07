@@ -1,8 +1,6 @@
 export type BackendId = "kde" | "gnome" | "hyprland";
 
-export type WaylandDesktop =
-  | BackendId
-  | "unknown";
+export type WaylandDesktop = BackendId | "unknown";
 
 export interface DetectResult {
   session: "wayland" | "x11" | "unknown";
@@ -24,5 +22,3 @@ export interface OpacityBackend {
   isAvailable(): Promise<boolean>;
   adjustOpacity(step: number, min: number, max: number): Promise<AdjustResult>;
 }
-
-export const KWIN_SCRIPT_VERSION = 1;
