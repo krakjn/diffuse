@@ -1,0 +1,14 @@
+.vscode/**
+.vscode-test/**
+src/**
+node_modules/**
+.gitignore
+.dockerignore
+Dockerfile
+docker-compose.yml
+justfile
+scripts/**
+**/*.ts
+**/*.map
+**/tsconfig.json
+dist/**

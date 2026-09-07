@@ -1,0 +1,21 @@
+services:
+  package:
+    build: .
+    volumes:
+      - .:/work
+      - node_modules:/work/node_modules
+      - ./dist:/out
+    command: package
+
+  publish:
+    build: .
+    environment:
+      OVSX_PAT: ${OVSX_PAT:-}
+    volumes:
+      - .:/work
+      - node_modules:/work/node_modules
+      - ./dist:/out
+    command: publish
+
+volumes:
+  node_modules:
