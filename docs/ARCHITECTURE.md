@@ -57,8 +57,8 @@ Wayland + a known desktop sets `backendId` and `supported`. X11 always reports u
 
 The status bar is **backend-agnostic**:
 
-- Supported: `Diffuse: KDE Plasma 85%`
-- Unsupported: `Diffuse: GNOME (unsupported)`
+- Supported: `opacity: 85%`
+- Unsupported: `opacity: unsupported`
 
 Backend details (KWin script version, detection dump) go to the **Diffuse** output channel via `Diffuse: Show Environment` or on activate.
 

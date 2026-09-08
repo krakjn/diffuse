@@ -96,7 +96,7 @@
         "diffuse.showStatusBar": {
           "type": "boolean",
           "default": true,
-          "description": "Show detected desktop in the status bar."
+          "description": "Show current opacity in the status bar."
         }
       }
     }

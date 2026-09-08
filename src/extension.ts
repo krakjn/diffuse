@@ -89,10 +89,10 @@ class DiffuseContext {
     const pct = Math.round(currentOpacity * 100);
 
     if (this.detected.supported) {
-      this.statusBarItem.text = `$(eye) Diffuse: ${this.detected.displayName} ${pct}%`;
+      this.statusBarItem.text = `$(eye) opacity: ${pct}%`;
       this.statusBarItem.tooltip = statusBarTooltip(this.detected, pct);
     } else {
-      this.statusBarItem.text = `$(eye) Diffuse: ${this.detected.displayName} (unsupported)`;
+      this.statusBarItem.text = "$(eye) opacity: unsupported";
       this.statusBarItem.tooltip = statusBarTooltip(this.detected);
     }
 
