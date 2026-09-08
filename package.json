@@ -22,7 +22,6 @@
     "x11",
     "kde",
     "plasma",
-    "hyprland",
     "sway",
     "gnome",
     "windows",
@@ -105,7 +104,6 @@
           "enum": [
             "auto",
             "kde",
-            "hyprland",
             "sway",
             "x11",
             "gnome",
@@ -115,7 +113,6 @@
           "enumDescriptions": [
             "Detect the platform and pick the best available backend.",
             "KDE Plasma Wayland via ephemeral KWin scripts.",
-            "Hyprland via hyprctl.",
             "Sway via swaymsg.",
             "Any X11 session (and XWayland) via xprop _NET_WM_WINDOW_OPACITY.",
             "GNOME Wayland via the companion GNOME Shell extension.",

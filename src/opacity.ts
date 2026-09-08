@@ -235,6 +235,10 @@ export class OpacityService {
     };
     return this.resolution;
   }
+
+  dispose(): void {
+    this.registry.dispose();
+  }
 }
 
 export function describeError(error: unknown): string {

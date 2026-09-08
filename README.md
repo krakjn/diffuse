@@ -16,16 +16,20 @@ The status bar shows current opacity, for example `opacity: 85%`.
 | Platform | Backend | Status |
 |----------|---------|--------|
 | KDE Plasma Wayland | KWin script over D-Bus | Supported |
-| Hyprland | `hyprctl` | Supported |
 | Sway | `swaymsg` | Supported |
 | X11, any desktop | `xprop` | Supported |
+| GNOME X11 | `xprop` | Confirmed |
 | GNOME Wayland | XWayland via `xprop`, else companion Shell extension | Supported |
 | Windows | `SetLayeredWindowAttributes` | Supported |
 | macOS | yabai | [Opt-in](#macos-workaround) |
 
 Diffuse probes the candidates for your session in order and uses the first that
-works, so KDE on X11, XFCE, i3, MATE, and Cinnamon all land on `xprop` without
-any desktop-specific code. Set `diffuse.backend` to skip probing and force one.
+works, so KDE on X11, GNOME on X11, XFCE, i3, MATE, and Cinnamon all land on
+`xprop` without any desktop-specific code. Set `diffuse.backend` to skip probing
+and force one.
+
+Hyprland already owns window opacity in its own config. Diffuse detects that
+session and stays out of the way.
 
 X11 opacity needs a compositing manager — picom, xcompmgr, or your desktop's
 built-in compositor. Without one the property is set and then ignored.
@@ -65,12 +69,15 @@ licensed and is itself a port of the
 
 #### NOTES:
 
-##### GNOME Wayland
+##### GNOME
 
-Electron normally runs through XWayland, where Mutter honours
-`_NET_WM_WINDOW_OPACITY` and the `xprop` backend already works. If your editor
-runs as a native Wayland client, run **Diffuse: Install GNOME Shell Extension**,
-enable it in the Extensions app, and log out and back in.
+GNOME on X11 is confirmed: Mutter honours `_NET_WM_WINDOW_OPACITY`, so the
+`xprop` backend is enough.
+
+On GNOME Wayland, Electron normally still runs through XWayland and the same
+path works. If your editor is a native Wayland client, run **Diffuse: Install
+GNOME Shell Extension**, enable it in the Extensions app, and log out and back
+in.
 
 ##### macOS workaround
 

@@ -5,6 +5,9 @@ export const MACOS_SETUP_DOC =
 
 /** Shown when no candidate backend reported itself available. */
 export function noBackendMessage(detected: DetectResult): string {
+  if (detected.skipReason) {
+    return detected.skipReason;
+  }
   if (detected.candidates.length === 0) {
     return `No opacity backend for ${detected.desktop}. Diffuse needs a Wayland compositor with an opacity API, an X11 session, Windows, or macOS with yabai.`;
   }

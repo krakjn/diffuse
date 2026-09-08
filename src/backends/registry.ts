@@ -14,4 +14,10 @@ export class BackendRegistry {
   list(): OpacityBackend[] {
     return [...this.backends.values()];
   }
+
+  dispose(): void {
+    for (const backend of this.backends.values()) {
+      backend.dispose?.();
+    }
+  }
 }

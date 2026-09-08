@@ -116,6 +116,10 @@ class DiffuseContext {
 
     this.statusBarItem.show();
   }
+
+  dispose(): void {
+    this.service.dispose();
+  }
 }
 
 let diffuse: DiffuseContext | undefined;
@@ -126,5 +130,6 @@ export function activate(context: vscode.ExtensionContext): void {
 }
 
 export function deactivate(): void {
+  diffuse?.dispose();
   diffuse = undefined;
 }

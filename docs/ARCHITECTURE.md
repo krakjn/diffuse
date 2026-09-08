@@ -57,11 +57,11 @@ sees, so each backend explains its own absence instead of a shared string table.
 | Session | Candidates |
 |---------|-----------|
 | Wayland + KDE | `kde`, `x11` |
-| Wayland + Hyprland | `hyprland`, `x11` |
 | Wayland + Sway | `sway`, `x11` |
 | Wayland + GNOME | `x11`, `gnome` |
+| Wayland + Hyprland | none — Hyprland already owns opacity |
 | Wayland, other | `x11` |
-| X11, any desktop | `x11` |
+| X11, any desktop (including GNOME) | `x11` |
 | Windows | `windows` |
 | macOS | `macos` |
 
@@ -84,11 +84,10 @@ is coalesced into the latest target value.
 | Backend | Mechanism |
 |---------|-----------|
 | `kde` | Ephemeral KWin script over D-Bus, output read from the journal |
-| `hyprland` | `hyprctl dispatch setprop`, dialect probed at runtime |
 | `sway` | `swaymsg [con_id=…] opacity` |
 | `x11` | `xprop -f _NET_WM_WINDOW_OPACITY 32c -set` |
 | `gnome` | `gdbus` to the companion GNOME Shell extension in `runtime/gnome/` |
-| `windows` | `runtime/win/set-opacity.ps1` — `WS_EX_LAYERED` + `SetLayeredWindowAttributes` |
+| `windows` | Persistent PowerShell + `runtime/win/SetOpacity.cs` (GlassIt-VSC approach) |
 | `macos` | `yabai -m window --opacity` |
 
 ### KDE
@@ -100,13 +99,16 @@ is coalesced into the latest target value.
 
 No permanent system install — scripts are ephemeral under `/tmp`.
 
-### Hyprland
+### Windows
 
-hyprctl renamed its opacity properties in 0.53. `src/backends/hyprland/dialect.ts`
-holds both spellings and the backend probes them in order, caching whichever
-hyprctl accepts. A future rename is a one-file change.
+GlassIt-VSC keeps one PowerShell process alive, `Add-Type`s a C# helper once, and
+each keypress is `[SetTransparency]::SetTransparency(pid, alpha)`. Diffuse does
+the same with `runtime/win/SetOpacity.cs` so a key does not pay PowerShell
+startup (~300ms) or C# compile on every chord.
 
 ### GNOME
+
+GNOME on X11 is confirmed via the generic `x11` backend (`_NET_WM_WINDOW_OPACITY`).
 
 Mutter exposes no external opacity API and `Shell.Eval` has been locked since
 GNOME 41, so native-Wayland windows can only be dimmed from inside the Shell

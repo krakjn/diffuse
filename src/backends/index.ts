@@ -1,5 +1,4 @@
 import { GnomeBackend } from "./gnome/gnome";
-import { HyprlandBackend } from "./hyprland/hyprland";
 import { KdeBackend } from "./kde/kde";
 import { MacosBackend } from "./macos/macos";
 import { BackendRegistry } from "./registry";
@@ -12,7 +11,6 @@ export function createBackendRegistry(extensionPath: string): BackendRegistry {
   const registry = new BackendRegistry();
 
   registry.register(new KdeBackend(extensionPath));
-  registry.register(new HyprlandBackend());
   registry.register(new SwayBackend());
   registry.register(new X11Backend());
   registry.register(new GnomeBackend());

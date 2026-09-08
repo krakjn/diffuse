@@ -10,6 +10,8 @@ interface LinuxDesktopSpec {
   detect: () => boolean;
   /** Ordered candidates when this desktop runs on Wayland. */
   wayland: BackendId[];
+  /** Why Diffuse should stay out of the way on this compositor. */
+  skipReason?: string;
 }
 
 function envTokens(): string[] {
@@ -39,7 +41,9 @@ const LINUX_DESKTOPS: LinuxDesktopSpec[] = [
   {
     displayName: "Hyprland",
     detect: () => !!process.env.HYPRLAND_INSTANCE_SIGNATURE,
-    wayland: ["hyprland", "x11"],
+    wayland: [],
+    skipReason:
+      "Hyprland already manages window opacity; Diffuse does not override it.",
   },
   {
     displayName: "Sway",
@@ -142,6 +146,10 @@ export function detectEnvironment(): DetectResult {
     session,
     desktop: describeLinux(desktop, session),
     candidates,
+    skipReason:
+      session === "wayland" && candidates.length === 0
+        ? desktop?.skipReason
+        : undefined,
   };
 }
 

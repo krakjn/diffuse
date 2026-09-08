@@ -4,7 +4,6 @@ export type Session = "wayland" | "x11" | "native" | "unknown";
 
 export type BackendId =
   | "kde"
-  | "hyprland"
   | "sway"
   | "x11"
   | "gnome"
@@ -16,6 +15,8 @@ export interface DetectResult {
   session: Session;
   desktop: string;
   candidates: BackendId[];
+  /** Set when this session is recognized but Diffuse should not touch it. */
+  skipReason?: string;
 }
 
 /** Why a backend can or cannot drive this session. */
@@ -37,6 +38,7 @@ export interface OpacityBackend {
   apply(value: number): Promise<ApplyResult>;
   /** Read back the live value, when the compositor exposes one. */
   read?(): Promise<number | null>;
+  dispose?(): void;
 }
 
 export function available(): Availability {

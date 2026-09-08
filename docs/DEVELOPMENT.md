@@ -60,7 +60,7 @@ Foreign-runtime scripts ship in `runtime/` alongside the compiled `out/`:
 
 ```
 runtime/kwin/     KWin scripts loaded over D-Bus
-runtime/win/      set-opacity.ps1 for the Windows backend
+runtime/win/      SetOpacity.cs for the persistent PowerShell session
 runtime/gnome/    Companion GNOME Shell extension
 ```
 
@@ -71,7 +71,6 @@ They are re-included explicitly in [.vscodeignore](../.vscodeignore); confirm th
 Each backend is reachable without the extension, which is the fastest way to tell a Diffuse bug from a platform one:
 
 ```bash
-hyprctl dispatch setprop active opacity 0.85 override        # Hyprland
 swaymsg '[con_id=__focused__]' opacity 0.85                  # Sway
 xprop -id "$(xdotool getactivewindow)" -f _NET_WM_WINDOW_OPACITY 32c \
   -set _NET_WM_WINDOW_OPACITY 3650722201                     # X11

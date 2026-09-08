@@ -1,40 +1,21 @@
 import * as path from "path";
 import { runtimeDir } from "../../runtime-paths";
-import { EDITOR_EXECUTABLES } from "../../targets";
-import { firstAvailableCommand, tryExec } from "../../util/exec";
+import { firstAvailableCommand } from "../../util/exec";
 import type { ApplyResult, Availability, OpacityBackend } from "../types";
 import { available, unavailable } from "../types";
+import { PowerShellSession } from "./powershell-session";
 
-interface ScriptResult {
-  ok: boolean;
-  message?: string;
-  process?: string;
-  alpha?: number | null;
-  value?: number;
-}
-
-/** PowerShell can print warnings before the payload; the JSON is the last line. */
-function parseResult(stdout: string): ScriptResult | null {
-  const lines = stdout
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean);
-
-  for (const line of lines.reverse()) {
-    try {
-      return JSON.parse(line) as ScriptResult;
-    } catch {
-      continue;
-    }
-  }
-  return null;
-}
-
+/**
+ * GlassIt-VSC's Windows path: one PowerShell process, C# loaded once, each
+ * keypress is `[Diffuse.SetOpacity]::Apply(pid, alpha)` against this editor.
+ */
 export class WindowsBackend implements OpacityBackend {
   readonly id = "windows" as const;
   readonly displayName = "Windows";
 
   private shell?: string;
+  private session?: PowerShellSession;
+  private ready = false;
 
   constructor(private readonly extensionPath: string) {}
 
@@ -43,33 +24,62 @@ export class WindowsBackend implements OpacityBackend {
       return unavailable("Not a Windows session");
     }
 
-    const shell = await this.resolveShell();
-    if (!shell) {
-      return unavailable("PowerShell not found on PATH");
+    try {
+      await this.ensureSession();
+      return available();
+    } catch (error) {
+      return unavailable(
+        error instanceof Error ? error.message : String(error)
+      );
     }
-
-    const result = await this.runScript(["-Probe"]);
-    if (!result.ok) {
-      return unavailable(result.message ?? "PowerShell probe failed");
-    }
-
-    return available();
   }
 
   async apply(value: number): Promise<ApplyResult> {
-    const result = await this.runScript(["-Value", value.toFixed(3)]);
-    if (!result.ok) {
-      throw new Error(result.message ?? "Failed to set window opacity");
+    const session = await this.ensureSession();
+    const alpha = Math.max(1, Math.min(255, Math.round(value * 255)));
+    const reply = await session.invoke(
+      `[Diffuse.SetOpacity]::Apply(${process.pid}, ${alpha})`
+    );
+
+    if (reply.includes("no-process") || reply.includes("no-window")) {
+      throw new Error("No editor window found");
     }
-    return { value, target: result.process };
+    if (reply.toLowerCase().includes("error") || !reply.includes("ok")) {
+      throw new Error(reply || "Failed to set window opacity");
+    }
+
+    return { value, target: String(process.pid) };
   }
 
-  async read(): Promise<number | null> {
-    const result = await this.runScript(["-Probe"]);
-    if (!result.ok || typeof result.alpha !== "number") {
-      return null;
+  dispose(): void {
+    this.session?.dispose();
+    this.session = undefined;
+    this.ready = false;
+  }
+
+  private async ensureSession(): Promise<PowerShellSession> {
+    if (this.session && this.ready) {
+      return this.session;
     }
-    return result.alpha / 255;
+
+    const shell = await this.resolveShell();
+    if (!shell) {
+      throw new Error("PowerShell not found on PATH");
+    }
+
+    const session = this.session ?? new PowerShellSession();
+    this.session = session;
+    await session.start(shell);
+
+    const csPath = path.join(runtimeDir(this.extensionPath, "win"), "SetOpacity.cs");
+    const escaped = csPath.replace(/'/g, "''");
+    const load = await session.invoke(`Add-Type -Path '${escaped}'`);
+    if (/error/i.test(load)) {
+      throw new Error(load || "Add-Type failed to load SetOpacity.cs");
+    }
+
+    this.ready = true;
+    return session;
   }
 
   private async resolveShell(): Promise<string | null> {
@@ -78,38 +88,5 @@ export class WindowsBackend implements OpacityBackend {
         (await firstAvailableCommand(["powershell", "pwsh"])) ?? undefined;
     }
     return this.shell ?? null;
-  }
-
-  private async runScript(extraArgs: string[]): Promise<ScriptResult> {
-    const shell = await this.resolveShell();
-    if (!shell) {
-      return { ok: false, message: "PowerShell not found on PATH" };
-    }
-
-    const scriptPath = path.join(
-      runtimeDir(this.extensionPath, "win"),
-      "set-opacity.ps1"
-    );
-    const result = await tryExec(shell, [
-      "-NoProfile",
-      "-NonInteractive",
-      "-ExecutionPolicy",
-      "Bypass",
-      "-File",
-      scriptPath,
-      "-Processes",
-      EDITOR_EXECUTABLES.join(","),
-      ...extraArgs,
-    ]);
-
-    const parsed = parseResult(result.stdout);
-    if (parsed) {
-      return parsed;
-    }
-
-    return {
-      ok: false,
-      message: result.stderr || "PowerShell produced no output",
-    };
   }
 }
