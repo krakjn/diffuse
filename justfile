@@ -1,9 +1,9 @@
 _:
     @just --list
 
-# build Docker image
+# build Docker image (context is docker/ only — repo is mounted at run time)
 img:
-    docker build -t diffuse-builder .
+    docker build -t diffuse-builder docker/
 
 # package VSIX to dist/
 build: img
@@ -41,11 +41,3 @@ publish:
       exit 1
     fi
     npx --yes ovsx publish "${vsix[0]}" -p "$OVSX_PAT"
-
-# print Open VSX namespace claim instructions
-claim-namespace:
-    @echo "File this as GitHub user krakjn (not as a bot):"
-    @echo "https://github.com/EclipseFdn/open-vsx.org/issues/new?template=claim-namespace-ownership.yml&title=Claiming%20namespace%20krakjn"
-    @echo
-    @echo "Use Option 3 (not a VS Code Marketplace publisher)."
-    @echo "Filled-in body: docs/DEVELOPMENT.md#claim-namespace-ownership-verified-listing"

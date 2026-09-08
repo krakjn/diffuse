@@ -1,24 +1,23 @@
 import type { DetectResult } from "./backends/types";
 
-export function unsupportedMessage(detected: DetectResult): string {
-  switch (detected.desktop) {
-    case "gnome":
-      return "GNOME Wayland is not supported yet. Mutter has no external opacity API.";
-    case "hyprland":
-      return "Hyprland support is coming in a future release.";
-    case "kde":
-      return "KDE Plasma detected but the opacity backend is unavailable.";
-    default:
-      return "Diffuse supports KDE Plasma Wayland only in this release.";
+export const MACOS_SETUP_DOC =
+  "https://github.com/krakjn/diffuse#macos-opt-in";
+
+/** Shown when no candidate backend reported itself available. */
+export function noBackendMessage(detected: DetectResult): string {
+  if (detected.candidates.length === 0) {
+    return `No opacity backend for ${detected.desktop}. Diffuse needs a Wayland compositor with an opacity API, an X11 session, Windows, or macOS with yabai.`;
   }
+  return `No usable opacity backend for ${detected.desktop}.`;
 }
 
 export function statusBarTooltip(
   detected: DetectResult,
+  backendName: string | null,
   opacityPct?: number
 ): string {
-  if (!detected.supported) {
-    return unsupportedMessage(detected);
+  if (!backendName) {
+    return noBackendMessage(detected);
   }
-  return `Window opacity ${opacityPct ?? 100}% on ${detected.displayName}`;
+  return `Window opacity ${opacityPct ?? 100}% via ${backendName} on ${detected.desktop}`;
 }

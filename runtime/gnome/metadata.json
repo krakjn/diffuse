@@ -1,0 +1,8 @@
+{
+  "uuid": "diffuse@krakjn.github.io",
+  "name": "Diffuse",
+  "description": "Exposes a D-Bus method so the Diffuse editor extension can set window opacity on GNOME Wayland, where Mutter has no external opacity API.",
+  "shell-version": ["45", "46", "47", "48", "49", "50"],
+  "url": "https://github.com/krakjn/diffuse",
+  "settings-schema": null
+}

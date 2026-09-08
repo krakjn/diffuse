@@ -1,13 +1,16 @@
+# used when packaging with `vsce package`
 .vscode/**
 .vscode-test/**
 src/**
 node_modules/**
 .gitignore
-.dockerignore
-Dockerfile
+docker/**
 justfile
 scripts/**
 **/*.ts
 **/*.map
 **/tsconfig.json
 dist/**
+
+# Foreign-runtime scripts that must ship in the VSIX.
+!runtime/**

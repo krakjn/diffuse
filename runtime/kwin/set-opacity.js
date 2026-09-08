@@ -1,20 +1,22 @@
-// @diffuse-kwin-script-version 1
-// @diffuse-api adjust-editor-window-opacity
+// @diffuse-kwin-script-version 2
+// @diffuse-api set-editor-window-opacity
 // @diffuse-plasma target: Plasma 6 Wayland
 //
 // Target policy:
-//   1. activeWindow if it matches an editor resourceClass
+//   1. activeWindow if it matches an editor class
 //   2. focused editor window in windowList
 //   3. any matching editor window (single-window fallback)
 
 // --- diffuse params (injected) ---
-const DIFFUSE = { step: -0.025, min: 0.25, max: 1.0 };
+const DIFFUSE = { value: 1.0, classes: ["cursor", "code", "vscodium", "code-oss"] };
 // --- end diffuse params ---
 
-const EDITOR_CLASSES = ["cursor", "code", "vscodium", "code-oss"];
-
 function matchesEditor(win) {
-  return win && win.normalWindow && EDITOR_CLASSES.includes(win.resourceClass);
+  if (!win || !win.normalWindow) {
+    return false;
+  }
+  const cls = String(win.resourceClass).toLowerCase();
+  return DIFFUSE.classes.indexOf(cls) !== -1;
 }
 
 function findTargetWindow() {
@@ -39,13 +41,10 @@ function findTargetWindow() {
 
 const win = findTargetWindow();
 if (!win) {
-  print("DIFFUSE:ERROR:no-target-window");
+  print("DIFFUSE:ERROR:no editor window found on this KWin session");
 } else {
   const before = win.opacity;
-  win.opacity = Math.max(
-    DIFFUSE.min,
-    Math.min(DIFFUSE.max, win.opacity + DIFFUSE.step)
-  );
+  win.opacity = DIFFUSE.value;
   print(
     "DIFFUSE:" +
       JSON.stringify({

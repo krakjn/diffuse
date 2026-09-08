@@ -1,7 +1,7 @@
 {
   "name": "diffuse",
   "displayName": "Diffuse",
-  "description": "Adjust editor window opacity on Linux (KDE Plasma Wayland)",
+  "description": "Adjust editor window opacity on Linux, Windows, and macOS",
   "version": "0.1.0",
   "publisher": "krakjn",
   "license": "MIT",
@@ -19,8 +19,14 @@
     "transparency",
     "linux",
     "wayland",
+    "x11",
     "kde",
     "plasma",
+    "hyprland",
+    "sway",
+    "gnome",
+    "windows",
+    "macos",
     "window"
   ],
   "galleryBanner": {
@@ -47,20 +53,26 @@
         "title": "Diffuse: Increase Opacity"
       },
       {
+        "command": "diffuse.resetOpacity",
+        "title": "Diffuse: Reset Opacity"
+      },
+      {
         "command": "diffuse.showEnvironment",
         "title": "Diffuse: Show Environment"
+      },
+      {
+        "command": "diffuse.installGnomeExtension",
+        "title": "Diffuse: Install GNOME Shell Extension"
       }
     ],
     "keybindings": [
       {
         "command": "diffuse.decreaseOpacity",
-        "key": "ctrl+alt+z",
-        "when": "isLinux && (editorTextFocus || !editorTextFocus)"
+        "key": "ctrl+alt+z"
       },
       {
         "command": "diffuse.increaseOpacity",
-        "key": "ctrl+alt+c",
-        "when": "isLinux && (editorTextFocus || !editorTextFocus)"
+        "key": "ctrl+alt+c"
       }
     ],
     "configuration": {
@@ -90,8 +102,27 @@
         "diffuse.backend": {
           "type": "string",
           "default": "auto",
-          "enum": ["auto", "kde", "gnome", "hyprland"],
-          "description": "Opacity backend. auto detects the desktop environment."
+          "enum": [
+            "auto",
+            "kde",
+            "hyprland",
+            "sway",
+            "x11",
+            "gnome",
+            "windows",
+            "macos"
+          ],
+          "enumDescriptions": [
+            "Detect the platform and pick the best available backend.",
+            "KDE Plasma Wayland via ephemeral KWin scripts.",
+            "Hyprland via hyprctl.",
+            "Sway via swaymsg.",
+            "Any X11 session (and XWayland) via xprop _NET_WM_WINDOW_OPACITY.",
+            "GNOME Wayland via the companion GNOME Shell extension.",
+            "Windows via SetLayeredWindowAttributes.",
+            "macOS via yabai (requires the yabai scripting addition)."
+          ],
+          "description": "Opacity backend. auto probes the detected candidates in order; anything else is used without probing."
         },
         "diffuse.showStatusBar": {
           "type": "boolean",

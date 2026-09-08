@@ -2,9 +2,8 @@ import type { ExtensionContext, OutputChannel } from "vscode";
 import { workspace } from "vscode";
 import type { BackendRegistry } from "./backends/registry";
 import type { DetectResult, OpacityBackend } from "./backends/types";
-import { KdeBackend } from "./backends/kde/kde";
-import { detectEnvironment, resolveBackendId } from "./detect";
-import { unsupportedMessage } from "./messages";
+import { detectEnvironment, getDetectionSummary, resolveCandidates } from "./detect";
+import { noBackendMessage } from "./messages";
 
 const OPACITY_KEY = "diffuse.opacity";
 
@@ -27,67 +26,217 @@ export function getOpacityConfig(): OpacityConfig {
   };
 }
 
-export function getStoredOpacity(context: ExtensionContext): number {
-  return context.globalState.get<number>(OPACITY_KEY, 1);
+export function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
 }
 
-async function resolveBackend(
-  registry: BackendRegistry,
-  detected: DetectResult
-): Promise<OpacityBackend | null> {
-  const { backend: configured } = getOpacityConfig();
-  const backendId = resolveBackendId(configured, detected);
-  if (!backendId) {
-    return null;
-  }
-
-  const backend = registry.get(backendId);
-  if (!backend) {
-    return null;
-  }
-
-  if (!(await backend.isAvailable())) {
-    return null;
-  }
-
-  return backend;
+export function toPercent(value: number): number {
+  return Math.round(value * 100);
 }
 
-export async function adjustOpacity(
-  context: ExtensionContext,
-  registry: BackendRegistry,
-  detected: DetectResult,
-  direction: "increase" | "decrease",
-  log: OutputChannel
-): Promise<number | null> {
-  const backend = await resolveBackend(registry, detected);
-  if (!backend) {
-    throw new Error(unsupportedMessage(detected));
-  }
-
-  const { step, minOpacity, maxOpacity } = getOpacityConfig();
-  const signedStep = direction === "decrease" ? -step : step;
-
-  log.appendLine(
-    `adjust ${direction} step=${signedStep} min=${minOpacity} max=${maxOpacity} backend=${backend.id}`
-  );
-
-  if (backend instanceof KdeBackend) {
-    log.appendLine(`kwin script version ${backend.scriptVersion}`);
-  }
-
-  const result = await backend.adjustOpacity(
-    signedStep,
-    minOpacity,
-    maxOpacity
-  );
-  await context.globalState.update(OPACITY_KEY, result.after);
-  log.appendLine(`opacity ${result.before} -> ${result.after}`);
-
-  return result.after;
+interface Resolution {
+  backend: OpacityBackend | null;
+  reason: string;
 }
 
-export function getDetectionSummary(detected: DetectResult): string {
-  const backend = detected.backendId ?? "none";
-  return `session=${detected.session} desktop=${detected.desktop} (${detected.displayName}) backend=${backend} supported=${detected.supported}`;
+/**
+ * Owns opacity state, clamping, and backend resolution.
+ *
+ * Backends only ever answer "set this window to `value`"; every bit of
+ * arithmetic, persistence, and scheduling lives here.
+ */
+export class OpacityService {
+  private detectResult: DetectResult;
+  private resolution?: Resolution;
+  private target: number;
+  private applied: number;
+  private flushing = false;
+  private failure?: string;
+  private probed = false;
+
+  constructor(
+    private readonly context: ExtensionContext,
+    private readonly registry: BackendRegistry,
+    private readonly log: OutputChannel,
+    private readonly onChange: () => void,
+    private readonly onError: (message: string) => void
+  ) {
+    this.detectResult = detectEnvironment();
+    const stored = context.globalState.get<number>(OPACITY_KEY, 1);
+    this.target = stored;
+    this.applied = stored;
+  }
+
+  get detected(): DetectResult {
+    return this.detectResult;
+  }
+
+  get value(): number {
+    return this.target;
+  }
+
+  get lastError(): string | undefined {
+    return this.failure;
+  }
+
+  /** False until the first probe finishes, so the UI can avoid a false "unsupported". */
+  get ready(): boolean {
+    return this.probed;
+  }
+
+  get backendName(): string | null {
+    return this.resolution?.backend?.displayName ?? null;
+  }
+
+  /** Log the environment and seed state from the compositor when it can be read. */
+  async initialize(): Promise<void> {
+    this.log.appendLine(getDetectionSummary(this.detectResult));
+
+    const { backend, reason } = await this.resolveBackend();
+    this.probed = true;
+
+    if (!backend) {
+      this.failure = reason;
+      this.log.appendLine(`no backend: ${reason}`);
+      this.onChange();
+      return;
+    }
+
+    this.log.appendLine(`backend ${backend.id} (${backend.displayName})`);
+
+    if (backend.read) {
+      try {
+        const live = await backend.read();
+        if (live !== null) {
+          this.target = live;
+          this.applied = live;
+          this.log.appendLine(`seeded opacity from ${backend.id}: ${live}`);
+        }
+      } catch (error) {
+        this.log.appendLine(`read failed: ${describeError(error)}`);
+      }
+    }
+
+    this.onChange();
+  }
+
+  /** Re-run detection and drop the cached backend. */
+  async refresh(): Promise<void> {
+    this.detectResult = detectEnvironment();
+    this.resolution = undefined;
+    this.failure = undefined;
+    this.probed = false;
+    await this.initialize();
+  }
+
+  async adjust(direction: "increase" | "decrease"): Promise<void> {
+    const { step, minOpacity, maxOpacity } = getOpacityConfig();
+    const delta = direction === "decrease" ? -step : step;
+    await this.setTo(this.target + delta, minOpacity, maxOpacity);
+  }
+
+  async reset(): Promise<void> {
+    const { maxOpacity } = getOpacityConfig();
+    await this.setTo(maxOpacity);
+  }
+
+  private async setTo(value: number, min?: number, max?: number): Promise<void> {
+    const config = getOpacityConfig();
+    this.target = clamp(value, min ?? config.minOpacity, max ?? config.maxOpacity);
+    // Update the status bar before the subprocess round-trip so held keys feel live.
+    this.onChange();
+    await this.flush();
+  }
+
+  /**
+   * Apply the latest target, collapsing anything queued while a backend runs.
+   * Held keybindings must never stack subprocesses.
+   */
+  private async flush(): Promise<void> {
+    if (this.flushing) {
+      return;
+    }
+    this.flushing = true;
+
+    try {
+      while (this.target !== this.applied) {
+        const value = this.target;
+        const { backend, reason } = await this.resolveBackend();
+        if (!backend) {
+          this.fail(reason);
+          return;
+        }
+
+        const result = await backend.apply(value);
+        this.applied = value;
+        await this.context.globalState.update(OPACITY_KEY, value);
+        this.failure = undefined;
+
+        const target = result.target ? ` target=${result.target}` : "";
+        this.log.appendLine(
+          `opacity ${toPercent(value)}% via ${backend.id}${target}`
+        );
+      }
+    } catch (error) {
+      this.fail(describeError(error));
+    } finally {
+      this.flushing = false;
+    }
+  }
+
+  private fail(message: string): void {
+    this.target = this.applied;
+    this.failure = message;
+    // Re-probe next time; the user may have started a compositor since.
+    this.resolution = undefined;
+    this.log.appendLine(`error: ${message}`);
+    this.onChange();
+    this.onError(message);
+  }
+
+  private async resolveBackend(): Promise<Resolution> {
+    if (this.resolution) {
+      return this.resolution;
+    }
+
+    const configured = getOpacityConfig().backend;
+    const candidates = resolveCandidates(configured, this.detectResult);
+    const reasons: string[] = [];
+
+    for (const id of candidates) {
+      const backend = this.registry.get(id);
+      if (!backend) {
+        reasons.push(`${id}: no such backend`);
+        continue;
+      }
+
+      // An explicit diffuse.backend is a deliberate override; skip probing.
+      if (configured !== "auto") {
+        this.log.appendLine(`backend forced to ${id} by diffuse.backend`);
+        this.resolution = { backend, reason: "" };
+        return this.resolution;
+      }
+
+      const availability = await backend.isAvailable();
+      if (availability.ok) {
+        this.resolution = { backend, reason: "" };
+        return this.resolution;
+      }
+
+      const reason = availability.reason ?? "unavailable";
+      reasons.push(`${id}: ${reason}`);
+      this.log.appendLine(`backend ${id} unavailable — ${reason}`);
+    }
+
+    const detail = reasons.length ? ` (${reasons.join(" | ")})` : "";
+    this.resolution = {
+      backend: null,
+      reason: `${noBackendMessage(this.detectResult)}${detail}`,
+    };
+    return this.resolution;
+  }
+}
+
+export function describeError(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }

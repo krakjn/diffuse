@@ -1,24 +1,48 @@
-export type BackendId = "kde" | "gnome" | "hyprland";
+export type Platform = "linux" | "windows" | "macos";
 
-export type WaylandDesktop = BackendId | "unknown";
+export type Session = "wayland" | "x11" | "native" | "unknown";
+
+export type BackendId =
+  | "kde"
+  | "hyprland"
+  | "sway"
+  | "x11"
+  | "gnome"
+  | "windows"
+  | "macos";
 
 export interface DetectResult {
-  session: "wayland" | "x11" | "unknown";
-  desktop: WaylandDesktop;
-  backendId: BackendId | null;
-  supported: boolean;
-  displayName: string;
+  platform: Platform;
+  session: Session;
+  desktop: string;
+  candidates: BackendId[];
 }
 
-export interface AdjustResult {
-  before: number;
-  after: number;
-  resourceClass?: string;
-  caption?: string;
+/** Why a backend can or cannot drive this session. */
+export interface Availability {
+  ok: boolean;
+  reason?: string;
+}
+
+export interface ApplyResult {
+  value: number;
+  target?: string;
 }
 
 export interface OpacityBackend {
   readonly id: BackendId;
-  isAvailable(): Promise<boolean>;
-  adjustOpacity(step: number, min: number, max: number): Promise<AdjustResult>;
+  readonly displayName: string;
+  isAvailable(): Promise<Availability>;
+  /** Set absolute opacity. The caller has already clamped `value`. */
+  apply(value: number): Promise<ApplyResult>;
+  /** Read back the live value, when the compositor exposes one. */
+  read?(): Promise<number | null>;
+}
+
+export function available(): Availability {
+  return { ok: true };
+}
+
+export function unavailable(reason: string): Availability {
+  return { ok: false, reason };
 }

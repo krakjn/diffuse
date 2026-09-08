@@ -1,1 +1,1 @@
-export const KWIN_SCRIPT_VERSION = 1;
+export const KWIN_SCRIPT_VERSION = 2;

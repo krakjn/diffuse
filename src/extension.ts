@@ -1,75 +1,88 @@
 import * as vscode from "vscode";
 import { createBackendRegistry } from "./backends/index";
-import type { BackendRegistry } from "./backends/registry";
-import type { DetectResult } from "./backends/types";
-import { detectEnvironment } from "./detect";
+import {
+  gnomeExtensionDir,
+  installGnomeExtension,
+} from "./backends/gnome/install";
+import { getDetectionSummary } from "./detect";
 import { statusBarTooltip } from "./messages";
 import {
-  adjustOpacity,
-  getDetectionSummary,
+  describeError,
   getOpacityConfig,
-  getStoredOpacity,
+  OpacityService,
+  toPercent,
 } from "./opacity";
 
 class DiffuseContext {
-  readonly output = vscode.window.createOutputChannel("Diffuse");
-  readonly registry: BackendRegistry;
-  detected: DetectResult;
+  private readonly output = vscode.window.createOutputChannel("Diffuse");
+  private readonly service: OpacityService;
   private statusBarItem?: vscode.StatusBarItem;
 
   constructor(private readonly context: vscode.ExtensionContext) {
-    this.registry = createBackendRegistry(context);
-    this.detected = detectEnvironment();
+    const registry = createBackendRegistry(context.extensionPath);
+    this.service = new OpacityService(
+      context,
+      registry,
+      this.output,
+      () => this.updateStatusBar(),
+      (message) => vscode.window.showWarningMessage(`Diffuse: ${message}`)
+    );
   }
 
   activate(): void {
-    this.output.appendLine(getDetectionSummary(this.detected));
-    this.output.appendLine(`stored opacity ${getStoredOpacity(this.context)}`);
     this.updateStatusBar();
+    void this.service.initialize();
 
     this.context.subscriptions.push(
       this.output,
       vscode.commands.registerCommand("diffuse.decreaseOpacity", () =>
-        this.runAdjust("decrease")
+        this.service.adjust("decrease")
       ),
       vscode.commands.registerCommand("diffuse.increaseOpacity", () =>
-        this.runAdjust("increase")
+        this.service.adjust("increase")
+      ),
+      vscode.commands.registerCommand("diffuse.resetOpacity", () =>
+        this.service.reset()
       ),
       vscode.commands.registerCommand("diffuse.showEnvironment", () => {
-        this.detected = detectEnvironment();
         this.output.show(true);
-        this.output.appendLine(getDetectionSummary(this.detected));
+        void this.service.refresh();
       }),
+      vscode.commands.registerCommand("diffuse.installGnomeExtension", () =>
+        this.installGnomeShellExtension()
+      ),
       vscode.workspace.onDidChangeConfiguration((event) => {
         if (event.affectsConfiguration("diffuse")) {
-          this.updateStatusBar();
+          void this.service.refresh();
         }
       })
     );
   }
 
-  private async runAdjust(direction: "increase" | "decrease"): Promise<void> {
-    this.detected = detectEnvironment();
-
+  private async installGnomeShellExtension(): Promise<void> {
     try {
-      const after = await adjustOpacity(
-        this.context,
-        this.registry,
-        this.detected,
-        direction,
-        this.output
+      const destination = await installGnomeExtension(
+        this.context.extensionPath
       );
-      if (after !== null) {
-        this.updateStatusBar(after);
+      this.output.appendLine(`installed GNOME Shell extension to ${destination}`);
+
+      const choice = await vscode.window.showInformationMessage(
+        "Diffuse: GNOME Shell extension installed. Enable it, then log out and back in for GNOME to load it.",
+        "Show Output"
+      );
+      if (choice === "Show Output") {
+        this.output.show(true);
       }
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      this.output.appendLine(`error: ${message}`);
-      vscode.window.showWarningMessage(`Diffuse: ${message}`);
+      const message = describeError(error);
+      this.output.appendLine(`GNOME install failed: ${message}`);
+      vscode.window.showErrorMessage(
+        `Diffuse: could not install the GNOME Shell extension into ${gnomeExtensionDir()} — ${message}`
+      );
     }
   }
 
-  updateStatusBar(opacity?: number): void {
+  private updateStatusBar(): void {
     const { showStatusBar } = getOpacityConfig();
     if (!showStatusBar) {
       this.statusBarItem?.hide();
@@ -85,15 +98,20 @@ class DiffuseContext {
       this.context.subscriptions.push(this.statusBarItem);
     }
 
-    const currentOpacity = opacity ?? getStoredOpacity(this.context);
-    const pct = Math.round(currentOpacity * 100);
+    const detected = this.service.detected;
+    const backendName = this.service.backendName;
+    const pct = toPercent(this.service.value);
 
-    if (this.detected.supported) {
+    if (backendName) {
       this.statusBarItem.text = `$(eye) opacity: ${pct}%`;
-      this.statusBarItem.tooltip = statusBarTooltip(this.detected, pct);
+      this.statusBarItem.tooltip = statusBarTooltip(detected, backendName, pct);
+    } else if (!this.service.ready) {
+      this.statusBarItem.text = `$(eye) opacity: ${pct}%`;
+      this.statusBarItem.tooltip = `Detecting a backend for ${detected.desktop}…`;
     } else {
       this.statusBarItem.text = "$(eye) opacity: unsupported";
-      this.statusBarItem.tooltip = statusBarTooltip(this.detected);
+      this.statusBarItem.tooltip =
+        this.service.lastError ?? getDetectionSummary(detected);
     }
 
     this.statusBarItem.show();

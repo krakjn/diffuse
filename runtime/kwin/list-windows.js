@@ -1,4 +1,4 @@
-// @diffuse-kwin-script-version 1
+// @diffuse-kwin-script-version 2
 // @diffuse-api list-windows-debug
 
 for (const win of workspace.windowList()) {

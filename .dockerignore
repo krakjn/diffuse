@@ -1,9 +1,0 @@
-node_modules
-out
-dist
-*.vsix
-.git
-.gitignore
-.vscode
-**/*.ts.map
-npm-debug.log*

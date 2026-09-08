@@ -10,7 +10,7 @@ Contributor guide for building and installing Diffuse.
 ## Quick start
 
 ```bash
-just img      # build Docker image (first time, or after Dockerfile changes)
+just img      # build Docker image (first time, or after docker/Dockerfile changes)
 just build    # package VSIX to dist/
 just install  # install dist/diffuse-*.vsix into Cursor
 ```
@@ -41,38 +41,50 @@ Standalone script runner for debugging KWin integration without the extension:
 
 ```bash
 ./scripts/run-kwin.sh list
-./scripts/run-kwin.sh decrease
-./scripts/run-kwin.sh increase
+./scripts/run-kwin.sh set 0.85
 ```
 
-Scripts live in `kwin/`:
+Scripts live in `runtime/kwin/`:
 
 ```
-kwin/
-├── adjust-opacity.js   # @diffuse-kwin-script-version 1
+runtime/kwin/
+├── set-opacity.js      # @diffuse-kwin-script-version 2
 └── list-windows.js
 ```
 
-The `DIFFUSE` params block in `adjust-opacity.js` is injected at runtime by both the extension (`kwin-runner.ts`) and `scripts/run-kwin.sh`.
+The `DIFFUSE` params block in `set-opacity.js` carries the absolute target value and the editor class list. It is injected at runtime by both the extension (`kwin-runner.ts`) and `scripts/run-kwin.sh`.
 
-## Supported targets (v0.1.0)
+## Backend assets
 
-| Desktop | Status |
-|---------|--------|
-| KDE Plasma Wayland | Supported |
-| GNOME Wayland | Phase 2 |
-| Hyprland | Phase 3 |
+Foreign-runtime scripts ship in `runtime/` alongside the compiled `out/`:
 
-See [ARCHITECTURE.md](ARCHITECTURE.md) for backend design and how to add new compositors.
+```
+runtime/kwin/     KWin scripts loaded over D-Bus
+runtime/win/      set-opacity.ps1 for the Windows backend
+runtime/gnome/    Companion GNOME Shell extension
+```
 
-## Target editors
+They are re-included explicitly in [.vscodeignore](../.vscodeignore); confirm they survive `just build` when changing packaging.
 
-| Editor | resourceClass |
-|--------|---------------|
-| Cursor | `cursor` |
-| VS Code | `code` |
-| VSCodium | `vscodium` |
-| Code-OSS | `code-oss` |
+## Testing a backend
+
+Each backend is reachable without the extension, which is the fastest way to tell a Diffuse bug from a platform one:
+
+```bash
+hyprctl dispatch setprop active opacity 0.85 override        # Hyprland
+swaymsg '[con_id=__focused__]' opacity 0.85                  # Sway
+xprop -id "$(xdotool getactivewindow)" -f _NET_WM_WINDOW_OPACITY 32c \
+  -set _NET_WM_WINDOW_OPACITY 3650722201                     # X11
+yabai -m window --opacity 0.85                               # macOS
+```
+
+Force a backend with `diffuse.backend` to skip probing, and use **Diffuse: Show Environment** to dump detection and the resolved backend to the output channel.
+
+## Supported targets
+
+See [README.md](../README.md#supported-platforms) for the platform matrix and [ARCHITECTURE.md](ARCHITECTURE.md) for the backend contract and how to add one.
+
+Editor windows are matched through `src/targets.ts` — by window class on Linux, by process name on Windows and macOS. Adding an editor is a one-line change there.
 
 ## Publish (Open VSX)
 
