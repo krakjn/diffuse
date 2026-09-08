@@ -13,6 +13,8 @@ The status bar shows your desktop environment and current opacity, for example `
 
 ## Install
 
+Search **Diffuse** in the Cursor / VSCodium extensions panel ([Open VSX](https://open-vsx.org/extension/krakjn/diffuse)), or sideload a VSIX:
+
 1. Build the VSIX: `just build` (see [Development](docs/DEVELOPMENT.md)).
 2. Install: `just install` (or `cursor --install-extension dist/diffuse-0.1.0.vsix`).
 3. **Reload Window** — `Ctrl+Shift+P` → **Developer: Reload Window** (required after first install).
