@@ -21,7 +21,7 @@ The status bar shows current opacity, for example `opacity: 85%`.
 | GNOME X11 | `xprop` | Confirmed |
 | GNOME Wayland | XWayland via `xprop`, else companion Shell extension | Supported |
 | Windows | `SetLayeredWindowAttributes` | Supported |
-| macOS | yabai | [Opt-in](#macos-workaround) |
+| macOS | — | [Not supported](#why-not-macos) |
 
 Diffuse probes the candidates for your session in order and uses the first that
 works, so KDE on X11, GNOME on X11, XFCE, i3, MATE, and Cinnamon all land on
@@ -37,7 +37,7 @@ built-in compositor. Without one the property is set and then ignored.
 ## Supported editors
 
 Diffuse targets editor windows by window class on Linux and by process name on
-Windows and macOS:
+Windows:
 
 | Editor | Class |
 |--------|-------|
@@ -79,66 +79,20 @@ path works. If your editor is a native Wayland client, run **Diffuse: Install
 GNOME Shell Extension**, enable it in the Extensions app, and log out and back
 in.
 
-##### macOS workaround
+##### Why not macOS
 
-macOS has no public API for changing another application's window opacity, so
-Diffuse delegates to [yabai](https://github.com/koekeishiya/yabai) when it finds
-it. **Diffuse installs nothing, loads nothing, and changes no system settings.**
-You elect this setup yourself.
+macOS has no public API for changing another application's window opacity, and
+the private one does not work from outside the owning process. Calling
+`CGSSetWindowAlpha` on another app's window returns `kCGErrorSuccess` and
+changes nothing — the WindowServer refuses silently rather than erroring.
 
-> Step 2 partially disables System Integrity Protection, which lowers your Mac's
-> security. Read [yabai's own writeup][sip] and decide for yourself.
+That leaves two real options, and Diffuse takes neither:
 
-1. Install and start yabai:
+| Approach | What it costs |
+|----------|---------------|
+| [yabai](https://github.com/koekeishiya/yabai) | injects a scripting addition into Dock.app, which needs System Integrity Protection partially disabled |
+| [Vibrancy Continued](https://github.com/illixion/vscode-vibrancy-continued) | rewrites the editor's own files so the code runs inside the process that owns the window |
 
-   ```bash
-   brew install koekeishiya/formulae/yabai
-   yabai --start-service
-   ```
-
-2. Partially disable SIP. Hold the power button until "Loading startup options"
-   appears, click **Options** then **Continue**, and choose **Utilities** →
-   **Terminal**:
-
-   ```bash
-   # Apple Silicon, macOS 13 or newer
-   csrutil enable --without fs --without debug --without nvram
-
-   # Intel
-   csrutil disable --with kext --with dtrace --with nvram --with basesystem
-   ```
-
-   Reboot.
-
-3. Apple Silicon only — allow non-Apple-signed arm64e binaries, then reboot again:
-
-   ```bash
-   sudo nvram boot-args=-arm64e_preview_abi
-   ```
-
-4. Load the scripting addition and enable opacity:
-
-   ```bash
-   sudo yabai --load-sa
-   yabai -m config window_opacity on
-   ```
-
-   To survive a Dock restart, add a `dock_did_restart` signal to `~/.yabairc`
-   and a NOPASSWD entry to `/private/etc/sudoers.d/yabai`, both covered in the
-   [yabai wiki][sip].
-
-5. Verify with your editor focused:
-
-   ```bash
-   yabai -m window --opacity 0.85
-   ```
-
-   If that dims the window, the Diffuse shortcuts will too, and the status bar
-   stops reading `opacity: unsupported`.
-
-Known snags, so failures do not get misattributed to Diffuse: macOS 26 Tahoe
-refuses the `-arm64e_preview_abi` boot-arg on some machines, and yabai 7.1.17 has
-open payload-injection reports. Check yabai's issue tracker first.
-
-[sip]: https://github.com/koekeishiya/yabai/wiki/Disabling-System-Integrity-Protection
-
+Asking you to weaken SIP or patch your editor is more than a transparency
+toggle is worth. If you want either, install those projects directly — they do
+it well and they are honest about the tradeoff.

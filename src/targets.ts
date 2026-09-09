@@ -8,7 +8,7 @@
 /** Wayland `resourceClass` / X11 `WM_CLASS` / GNOME `wm_class`. */
 export const EDITOR_CLASSES = ["cursor", "code", "vscodium", "code-oss"];
 
-/** Windows image names and macOS application names. */
+/** Windows image names. */
 export const EDITOR_EXECUTABLES = [
   "cursor",
   "code",

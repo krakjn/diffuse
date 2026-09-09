@@ -2,13 +2,7 @@ export type Platform = "linux" | "windows" | "macos";
 
 export type Session = "wayland" | "x11" | "native" | "unknown";
 
-export type BackendId =
-  | "kde"
-  | "sway"
-  | "x11"
-  | "gnome"
-  | "windows"
-  | "macos";
+export type BackendId = "kde" | "sway" | "x11" | "gnome" | "windows";
 
 export interface DetectResult {
   platform: Platform;

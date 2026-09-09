@@ -1,8 +1,8 @@
 {
   "name": "diffuse",
   "displayName": "Diffuse",
-  "description": "Adjust editor window opacity on Linux, Windows, and macOS",
-  "version": "0.1.0",
+  "description": "Adjust editor window opacity on Linux and Windows",
+  "version": "0.2.0",
   "publisher": "krakjn",
   "license": "MIT",
   "repository": {
@@ -13,7 +13,9 @@
   "engines": {
     "vscode": "^1.85.0"
   },
-  "categories": ["Other"],
+  "categories": [
+    "Other"
+  ],
   "keywords": [
     "opacity",
     "transparency",
@@ -25,21 +27,24 @@
     "sway",
     "gnome",
     "windows",
-    "macos",
     "window"
   ],
   "galleryBanner": {
     "color": "#1e2a3a",
     "theme": "dark"
   },
-  "extensionKind": ["ui"],
+  "extensionKind": [
+    "ui"
+  ],
   "capabilities": {
     "virtualWorkspaces": false,
     "untrustedWorkspaces": {
       "supported": true
     }
   },
-  "activationEvents": ["onStartupFinished"],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
   "main": "./out/extension.js",
   "contributes": {
     "commands": [
@@ -107,8 +112,7 @@
             "sway",
             "x11",
             "gnome",
-            "windows",
-            "macos"
+            "windows"
           ],
           "enumDescriptions": [
             "Detect the platform and pick the best available backend.",
@@ -116,8 +120,7 @@
             "Sway via swaymsg.",
             "Any X11 session (and XWayland) via xprop _NET_WM_WINDOW_OPACITY.",
             "GNOME Wayland via the companion GNOME Shell extension.",
-            "Windows via SetLayeredWindowAttributes.",
-            "macOS via yabai (requires the yabai scripting addition)."
+            "Windows via SetLayeredWindowAttributes."
           ],
           "description": "Opacity backend. auto probes the detected candidates in order; anything else is used without probing."
         },
