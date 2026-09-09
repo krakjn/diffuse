@@ -4,19 +4,11 @@ import {
   gnomeExtensionDir,
   installGnomeExtension,
 } from "./backends/gnome/install";
-import { getDetectionSummary } from "./detect";
-import { statusBarTooltip } from "./messages";
-import {
-  describeError,
-  getOpacityConfig,
-  OpacityService,
-  toPercent,
-} from "./opacity";
+import { describeError, OpacityService } from "./opacity";
 
 class DiffuseContext {
   private readonly output = vscode.window.createOutputChannel("Diffuse");
   private readonly service: OpacityService;
-  private statusBarItem?: vscode.StatusBarItem;
 
   constructor(private readonly context: vscode.ExtensionContext) {
     const registry = createBackendRegistry(context.extensionPath);
@@ -24,13 +16,11 @@ class DiffuseContext {
       context,
       registry,
       this.output,
-      () => this.updateStatusBar(),
       (message) => vscode.window.showWarningMessage(`Diffuse: ${message}`)
     );
   }
 
   activate(): void {
-    this.updateStatusBar();
     void this.service.initialize();
 
     this.context.subscriptions.push(
@@ -80,41 +70,6 @@ class DiffuseContext {
         `Diffuse: could not install the GNOME Shell extension into ${gnomeExtensionDir()} — ${message}`
       );
     }
-  }
-
-  private updateStatusBar(): void {
-    const { showStatusBar } = getOpacityConfig();
-    if (!showStatusBar) {
-      this.statusBarItem?.hide();
-      return;
-    }
-
-    if (!this.statusBarItem) {
-      this.statusBarItem = vscode.window.createStatusBarItem(
-        vscode.StatusBarAlignment.Right,
-        100
-      );
-      this.statusBarItem.command = "diffuse.showEnvironment";
-      this.context.subscriptions.push(this.statusBarItem);
-    }
-
-    const detected = this.service.detected;
-    const backendName = this.service.backendName;
-    const pct = toPercent(this.service.value);
-
-    if (backendName) {
-      this.statusBarItem.text = `$(eye) opacity: ${pct}%`;
-      this.statusBarItem.tooltip = statusBarTooltip(detected, backendName, pct);
-    } else if (!this.service.ready) {
-      this.statusBarItem.text = `$(eye) opacity: ${pct}%`;
-      this.statusBarItem.tooltip = `Detecting a backend for ${detected.desktop}…`;
-    } else {
-      this.statusBarItem.text = "$(eye) opacity: unsupported";
-      this.statusBarItem.tooltip =
-        this.service.lastError ?? getDetectionSummary(detected);
-    }
-
-    this.statusBarItem.show();
   }
 
   dispose(): void {

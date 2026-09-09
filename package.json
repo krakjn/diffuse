@@ -123,11 +123,6 @@
             "Windows via SetLayeredWindowAttributes."
           ],
           "description": "Opacity backend. auto probes the detected candidates in order; anything else is used without probing."
-        },
-        "diffuse.showStatusBar": {
-          "type": "boolean",
-          "default": true,
-          "description": "Show current opacity in the status bar."
         }
       }
     }

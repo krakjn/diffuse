@@ -9,8 +9,6 @@ Adjust editor window transparency/opacity with keyboard shortcuts.
 | `Ctrl+Alt+Z` | Decrease opacity (more transparent) |
 | `Ctrl+Alt+C` | Increase opacity (less transparent) |
 
-The status bar shows current opacity, for example `opacity: 85%`.
-
 ## Supported platforms
 
 | Platform | Backend | Status |
@@ -54,7 +52,6 @@ Windows:
 | `diffuse.minOpacity` | `0.25` | Lower bound |
 | `diffuse.maxOpacity` | `1` | Upper bound |
 | `diffuse.backend` | `auto` | Force a backend instead of probing |
-| `diffuse.showStatusBar` | `true` | Show current opacity in the status bar |
 
 ## Credits
 
@@ -67,9 +64,9 @@ licensed and is itself a port of the
 
 ### MIT License
 
-#### NOTES:
+## NOTES:
 
-##### GNOME
+### GNOME
 
 GNOME on X11 is confirmed: Mutter honours `_NET_WM_WINDOW_OPACITY`, so the
 `xprop` backend is enough.
@@ -79,7 +76,7 @@ path works. If your editor is a native Wayland client, run **Diffuse: Install
 GNOME Shell Extension**, enable it in the Extensions app, and log out and back
 in.
 
-##### Why not macOS
+### Why not macOS
 
 macOS has no public API for changing another application's window opacity, and
 the private one does not work from outside the owning process. Calling

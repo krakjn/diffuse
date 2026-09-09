@@ -10,14 +10,3 @@ export function noBackendMessage(detected: DetectResult): string {
   }
   return `No usable opacity backend for ${detected.desktop}.`;
 }
-
-export function statusBarTooltip(
-  detected: DetectResult,
-  backendName: string | null,
-  opacityPct?: number
-): string {
-  if (!backendName) {
-    return noBackendMessage(detected);
-  }
-  return `Window opacity ${opacityPct ?? 100}% via ${backendName} on ${detected.desktop}`;
-}

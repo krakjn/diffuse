@@ -12,7 +12,6 @@ export interface OpacityConfig {
   minOpacity: number;
   maxOpacity: number;
   backend: string;
-  showStatusBar: boolean;
 }
 
 export function getOpacityConfig(): OpacityConfig {
@@ -22,7 +21,6 @@ export function getOpacityConfig(): OpacityConfig {
     minOpacity: config.get<number>("minOpacity", 0.25),
     maxOpacity: config.get<number>("maxOpacity", 1),
     backend: config.get<string>("backend", "auto"),
-    showStatusBar: config.get<boolean>("showStatusBar", true),
   };
 }
 
@@ -52,13 +50,11 @@ export class OpacityService {
   private applied: number;
   private flushing = false;
   private failure?: string;
-  private probed = false;
 
   constructor(
     private readonly context: ExtensionContext,
     private readonly registry: BackendRegistry,
     private readonly log: OutputChannel,
-    private readonly onChange: () => void,
     private readonly onError: (message: string) => void
   ) {
     this.detectResult = detectEnvironment();
@@ -67,38 +63,15 @@ export class OpacityService {
     this.applied = stored;
   }
 
-  get detected(): DetectResult {
-    return this.detectResult;
-  }
-
-  get value(): number {
-    return this.target;
-  }
-
-  get lastError(): string | undefined {
-    return this.failure;
-  }
-
-  /** False until the first probe finishes, so the UI can avoid a false "unsupported". */
-  get ready(): boolean {
-    return this.probed;
-  }
-
-  get backendName(): string | null {
-    return this.resolution?.backend?.displayName ?? null;
-  }
-
   /** Log the environment and seed state from the compositor when it can be read. */
   async initialize(): Promise<void> {
     this.log.appendLine(getDetectionSummary(this.detectResult));
 
     const { backend, reason } = await this.resolveBackend();
-    this.probed = true;
 
     if (!backend) {
       this.failure = reason;
       this.log.appendLine(`no backend: ${reason}`);
-      this.onChange();
       return;
     }
 
@@ -116,8 +89,6 @@ export class OpacityService {
         this.log.appendLine(`read failed: ${describeError(error)}`);
       }
     }
-
-    this.onChange();
   }
 
   /** Re-run detection and drop the cached backend. */
@@ -125,7 +96,6 @@ export class OpacityService {
     this.detectResult = detectEnvironment();
     this.resolution = undefined;
     this.failure = undefined;
-    this.probed = false;
     await this.initialize();
   }
 
@@ -143,8 +113,6 @@ export class OpacityService {
   private async setTo(value: number, min?: number, max?: number): Promise<void> {
     const config = getOpacityConfig();
     this.target = clamp(value, min ?? config.minOpacity, max ?? config.maxOpacity);
-    // Update the status bar before the subprocess round-trip so held keys feel live.
-    this.onChange();
     await this.flush();
   }
 
@@ -190,7 +158,6 @@ export class OpacityService {
     // Re-probe next time; the user may have started a compositor since.
     this.resolution = undefined;
     this.log.appendLine(`error: ${message}`);
-    this.onChange();
     this.onError(message);
   }
 
