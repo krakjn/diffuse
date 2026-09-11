@@ -9,6 +9,7 @@ justfile
 scripts/**
 **/*.ts
 **/*.map
+**/*.test.js
 **/tsconfig.json
 dist/**
 

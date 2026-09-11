@@ -1,36 +1,38 @@
 # Diffuse
 
+[![Open VSX](https://img.shields.io/open-vsx/v/krakjn/diffuse?label=Open%20VSX&logo=eclipse)](https://open-vsx.org/extension/krakjn/diffuse)
+[![Downloads](https://img.shields.io/open-vsx/dt/krakjn/diffuse?label=downloads&logo=eclipse)](https://open-vsx.org/extension/krakjn/diffuse)
+
+
 ![Diffuse](assets/icon.png)
 
-Adjust editor window transparency/opacity with keyboard shortcuts.
+Diffused light. Adjust window opacity on Linux [Wayland and X11], Windows, and macOS
 
 | Shortcut | Action |
 |----------|--------|
-| `Ctrl+Alt+Z` | Decrease opacity (more transparent) |
-| `Ctrl+Alt+C` | Increase opacity (less transparent) |
+| `Ctrl+Alt+Z` (`Cmd+Option+Z` on macOS) | Decrease opacity (more transparent) |
+| `Ctrl+Alt+C` (`Cmd+Option+C` on macOS) | Increase opacity (less transparent) |
+| `Ctrl+Alt+X` (`Cmd+Option+X` on macOS) | Reset to fully opaque |
 
 ## Supported platforms
 
-| Platform | Backend | Status |
-|----------|---------|--------|
-| KDE Plasma Wayland | KWin script over D-Bus | Supported |
-| Sway | `swaymsg` | Supported |
-| X11, any desktop | `xprop` | Supported |
-| GNOME X11 | `xprop` | Confirmed |
-| GNOME Wayland | XWayland via `xprop`, else companion Shell extension | Supported |
-| Windows | `SetLayeredWindowAttributes` | Supported |
-| macOS | — | [Not supported](#why-not-macos) |
+| Platform |  Status |
+|----------| --------|
+| Linux: KDE [Wayland,X11] | Supported |
+| Linux: GNOME [Wayland,X11] | Supported |
+| Linux: Sway [Wayland,X11] | Supported |
+| Linux: any desktop [X11] | Supported |
+| Windows | Supported |
+| macOS | [Supported](#macos) |
 
 Diffuse probes the candidates for your session in order and uses the first that
-works, so KDE on X11, GNOME on X11, XFCE, i3, MATE, and Cinnamon all land on
-`xprop` without any desktop-specific code. Set `diffuse.backend` to skip probing
-and force one.
-
-Hyprland already owns window opacity in its own config. Diffuse detects that
-session and stays out of the way.
+works. Set `diffuse.backend` to skip probing and force one.
 
 X11 opacity needs a compositing manager — picom, xcompmgr, or your desktop's
 built-in compositor. Without one the property is set and then ignored.
+
+> NOTE: Hyprland already owns window opacity in its own config. Diffuse detects that
+session and stays out of the way.
 
 ## Supported editors
 
@@ -44,6 +46,10 @@ Windows:
 | Code-OSS | `code-oss` |
 | Cursor | `cursor` |
 
+On macOS the patch applies to the running editor. Diffuse also looks in
+`/Applications` and `~/Applications` for VS Code, VS Code Insiders, Cursor,
+VSCodium, Code - OSS, Windsurf, and Antigravity.
+
 ## Settings
 
 | Setting | Default | Meaning |
@@ -52,44 +58,55 @@ Windows:
 | `diffuse.minOpacity` | `0.25` | Lower bound |
 | `diffuse.maxOpacity` | `1` | Upper bound |
 | `diffuse.backend` | `auto` | Force a backend instead of probing |
+| `diffuse.macosAutoRestartAfterUpdate` | `false` | On macOS, restart automatically after an editor update so the patch is loaded |
 
 ## Credits
 
-Diffuse is inspired by [GlassIt-VSC](https://github.com/hikarin522/GlassIt-VSC)
-by [hikarin522](https://github.com/hikarin522) — the extension that proved editor
-transparency was worth having, and whose `Ctrl+Alt+Z` / `Ctrl+Alt+C` bindings
-Diffuse deliberately keeps so muscle memory carries over. GlassIt-VSC is MIT
-licensed and is itself a port of the
-[GlassIt](https://packagecontrol.io/packages/GlassIt) plugin for Sublime Text.
+Diffuse was inspired by [GlassIt-VSC](https://github.com/hikarin522/GlassIt-VSC).
+The move to wayland prevented GlassIt from working, which was the motivation of `diffuse`.
 
-### MIT License
+Hunting around for macOS support, I found [Glassy](https://github.com/optimistengineer/glassy)
+really elegant approach which I emulated in `diffuse`
+
+### [MIT License](/LICENSE)
 
 ## NOTES:
 
-### GNOME
+### macOS
 
-GNOME on X11 is confirmed: Mutter honours `_NET_WM_WINDOW_OPACITY`, so the
-`xprop` backend is enough.
+1. Open the Command Palette (`Cmd+Shift+P`)
+2. Run **Diffuse: Enable macOS Transparency**
+3. Confirm the warning — this rewrites the editor's `out/main.js`
+4. Restart when prompted, or quit and reopen the editor
 
-On GNOME Wayland, Electron normally still runs through XWayland and the same
-path works. If your editor is a native Wayland client, run **Diffuse: Install
-GNOME Shell Extension**, enable it in the Extensions app, and log out and back
-in.
+After that, the usual opacity shortcuts write `~/.diffuse-config.json` and the
+patched main process applies `BrowserWindow.setOpacity()` to the current
+windows.
 
-### Why not macOS
+If an editor update overwrites `main.js`, Diffuse re-applies the patch on
+startup when you previously opted in. A restart is still required for the new
+file to load. Set `diffuse.macosAutoRestartAfterUpdate` if you would rather skip
+the prompt.
 
-macOS has no public API for changing another application's window opacity, and
-the private one does not work from outside the owning process. Calling
-`CGSSetWindowAlpha` on another app's window returns `kCGErrorSuccess` and
-changes nothing — the WindowServer refuses silently rather than erroring.
+To undo: **Diffuse: Disable macOS Transparency**, then restart. Uninstall the
+extension only after the patch is gone.
 
-That leaves two real options, and Diffuse takes neither:
+### Known limitations
 
-| Approach | What it costs |
-|----------|---------------|
-| [yabai](https://github.com/koekeishiya/yabai) | injects a scripting addition into Dock.app, which needs System Integrity Protection partially disabled |
-| [Vibrancy Continued](https://github.com/illixion/vscode-vibrancy-continued) | rewrites the editor's own files so the code runs inside the process that owns the window |
-
-Asking you to weaken SIP or patch your editor is more than a transparency
-toggle is worth. If you want either, install those projects directly — they do
-it well and they are honest about the tradeoff.
+- **macOS requires patching the editor.** That may trigger a modified or
+  corrupt installation warning. Enable and disable both need a restart.
+- **Updates undo the patch.** Diffuse re-applies it when you opted in, but some
+  updates still need a manual restart.
+- **Transparency is the whole window**, including text. There is no blur or
+  vibrancy.
+- **The app bundle must be writable.** Installations in `/Applications` owned
+  by root need `chown`, or copy the app to `~/Applications`. App Translocation
+  (quarantine) can also make the bundle read-only.
+- **Do not stack patches.** Uninstall Glassy or Vibrancy Continued first — they
+  also rewrite `main.js`.
+- **The injection is ESM.** Current VS Code, Cursor, VSCodium, Windsurf, and
+  Antigravity builds use an ESM `main.js`. A CommonJS main process would not
+  load the patch.
+- **X11 needs a compositor.** Without picom, xcompmgr, or the desktop's own
+  compositor, `_NET_WM_WINDOW_OPACITY` is set and then ignored.
+- **Hyprland is left alone.** It already owns window opacity in its own config.

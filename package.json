@@ -1,8 +1,8 @@
 {
   "name": "diffuse",
   "displayName": "Diffuse",
-  "description": "Adjust editor window opacity on Linux and Windows",
-  "version": "0.2.0",
+  "description": "Diffused light. Adjust window opacity on Linux [Wayland and X11], Windows, and macOS",
+  "version": "1.1.0",
   "publisher": "krakjn",
   "license": "MIT",
   "repository": {
@@ -27,6 +27,7 @@
     "sway",
     "gnome",
     "windows",
+    "macos",
     "window"
   ],
   "galleryBanner": {
@@ -67,16 +68,47 @@
       {
         "command": "diffuse.installGnomeExtension",
         "title": "Diffuse: Install GNOME Shell Extension"
+      },
+      {
+        "command": "diffuse.enableMacosTransparency",
+        "title": "Diffuse: Enable macOS Transparency"
+      },
+      {
+        "command": "diffuse.disableMacosTransparency",
+        "title": "Diffuse: Disable macOS Transparency"
       }
     ],
+    "menus": {
+      "commandPalette": [
+        {
+          "command": "diffuse.installGnomeExtension",
+          "when": "isLinux"
+        },
+        {
+          "command": "diffuse.enableMacosTransparency",
+          "when": "isMac"
+        },
+        {
+          "command": "diffuse.disableMacosTransparency",
+          "when": "isMac"
+        }
+      ]
+    },
     "keybindings": [
       {
         "command": "diffuse.decreaseOpacity",
-        "key": "ctrl+alt+z"
+        "key": "ctrl+alt+z",
+        "mac": "cmd+alt+z"
       },
       {
         "command": "diffuse.increaseOpacity",
-        "key": "ctrl+alt+c"
+        "key": "ctrl+alt+c",
+        "mac": "cmd+alt+c"
+      },
+      {
+        "command": "diffuse.resetOpacity",
+        "key": "ctrl+alt+x",
+        "mac": "cmd+alt+x"
       }
     ],
     "configuration": {
@@ -112,7 +144,8 @@
             "sway",
             "x11",
             "gnome",
-            "windows"
+            "windows",
+            "macos"
           ],
           "enumDescriptions": [
             "Detect the platform and pick the best available backend.",
@@ -120,9 +153,15 @@
             "Sway via swaymsg.",
             "Any X11 session (and XWayland) via xprop _NET_WM_WINDOW_OPACITY.",
             "GNOME Wayland via the companion GNOME Shell extension.",
-            "Windows via SetLayeredWindowAttributes."
+            "Windows via SetLayeredWindowAttributes.",
+            "macOS via an opt-in patch of the editor's Electron main process."
           ],
           "description": "Opacity backend. auto probes the detected candidates in order; anything else is used without probing."
+        },
+        "diffuse.macosAutoRestartAfterUpdate": {
+          "type": "boolean",
+          "default": false,
+          "description": "On macOS, automatically restart the editor after an update so the transparency patch is loaded without prompting."
         }
       }
     }
@@ -130,6 +169,7 @@
   "scripts": {
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
+    "test": "tsc -p ./ && node out/backends/macos/patch-content.test.js && node out/backends/macos/patcher.test.js",
     "vscode:prepublish": "npm run compile",
     "package": "vsce package --no-dependencies --allow-missing-repository --out dist"
   },
