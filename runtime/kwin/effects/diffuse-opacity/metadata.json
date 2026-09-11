@@ -1,0 +1,22 @@
+{
+  "KPackageStructure": "KWin/Effect",
+  "KPlugin": {
+    "Authors": [
+      {
+        "Email": "krakjn@gmail.com",
+        "Name": "krakjn"
+      }
+    ],
+    "Category": "Appearance",
+    "Description": "Live editor opacity for Diffuse (VS Code, VSCodium, Code-OSS, Cursor)",
+    "EnabledByDefault": false,
+    "Id": "diffuse_opacity",
+    "License": "MIT",
+    "Name": "Diffuse Opacity",
+    "Version": "1.1.0"
+  },
+  "X-KDE-ConfigModule": "kwin/effects/configs/kcm_kwin4_genericscripted",
+  "X-KDE-Ordering": 50,
+  "X-Plasma-API": "javascript",
+  "X-Plasma-MainScript": "code/main.js"
+}

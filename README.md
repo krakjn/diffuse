@@ -12,7 +12,9 @@ Diffused light. Adjust window opacity on Linux [Wayland and X11], Windows, and m
 |----------|--------|
 | `Ctrl+Alt+Z` (`Cmd+Option+Z` on macOS) | Decrease opacity (more transparent) |
 | `Ctrl+Alt+C` (`Cmd+Option+C` on macOS) | Increase opacity (less transparent) |
-| `Ctrl+Alt+X` (`Cmd+Option+X` on macOS) | Reset to fully opaque |
+| `Ctrl+Alt+X` (`Cmd+Option+X` on macOS) | Reset to `diffuse.maxOpacity` (default 1.0) |
+
+On Linux, those chords never reach the editor if the desktop already owns them. For example, KDE Plasma's **Mouse Tiler** KWin shortcuts default to `Ctrl+Alt+C` / `Ctrl+Alt+X`. Clear or remap them under **System Settings → Keyboard → Shortcuts → KWin**. Command Palette **Diffuse: Reset Opacity** still works either way.
 
 ## Supported platforms
 
@@ -56,7 +58,7 @@ VSCodium, Code - OSS, Windsurf, and Antigravity.
 |---------|---------|---------|
 | `diffuse.step` | `0.025` | Opacity change per keypress |
 | `diffuse.minOpacity` | `0.25` | Lower bound |
-| `diffuse.maxOpacity` | `1` | Upper bound |
+| `diffuse.maxOpacity` | `1.0` | Upper bound; reset returns here |
 | `diffuse.backend` | `auto` | Force a backend instead of probing |
 | `diffuse.macosAutoRestartAfterUpdate` | `false` | On macOS, restart automatically after an editor update so the patch is loaded |
 

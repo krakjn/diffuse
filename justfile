@@ -29,12 +29,12 @@ build: img
 install:
     #!/usr/bin/env bash
     set -euo pipefail
-    vsix=(dist/diffuse-*.vsix)
-    if [[ ! -f "${vsix[0]}" ]]; then
+    vsix=$(ls -1 dist/diffuse-*.vsix 2>/dev/null | sort -V | tail -n1)
+    if [[ -z "${vsix}" || ! -f "${vsix}" ]]; then
       echo "No VSIX found. Run: just build" >&2
       exit 1
     fi
-    cursor --install-extension "${vsix[0]}"
+    cursor --install-extension "${vsix}"
 
 [windows]
 install:
@@ -49,12 +49,12 @@ publish:
       echo "Set OVSX_PAT to an Open VSX access token: https://open-vsx.org/user-settings/tokens" >&2
       exit 1
     fi
-    vsix=(dist/diffuse-*.vsix)
-    if [[ ! -f "${vsix[0]}" ]]; then
+    vsix=$(ls -1 dist/diffuse-*.vsix 2>/dev/null | sort -V | tail -n1)
+    if [[ -z "${vsix}" || ! -f "${vsix}" ]]; then
       echo "No VSIX found. Run: just build" >&2
       exit 1
     fi
-    npx --yes ovsx publish "${vsix[0]}" -p "$OVSX_PAT"
+    npx --yes ovsx publish "${vsix}" -p "$OVSX_PAT"
 
 [windows]
 publish:

@@ -19,7 +19,7 @@ export function getOpacityConfig(): OpacityConfig {
   return {
     step: config.get<number>("step", 0.025),
     minOpacity: config.get<number>("minOpacity", 0.25),
-    maxOpacity: config.get<number>("maxOpacity", 1),
+    maxOpacity: config.get<number>("maxOpacity", 1.0),
     backend: config.get<string>("backend", "auto"),
   };
 }
@@ -82,6 +82,16 @@ export class OpacityService {
 
     this.log.appendLine(`backend ${backend.id} (${backend.displayName})`);
 
+    if (backend.ensureReady) {
+      try {
+        await backend.ensureReady(this.target);
+        this.log.appendLine(`${backend.id} ready opacity=${this.target}`);
+      } catch (error) {
+        this.fail(describeError(error));
+        return;
+      }
+    }
+
     if (backend.read) {
       try {
         const live = await backend.read();
@@ -111,8 +121,9 @@ export class OpacityService {
   }
 
   async reset(): Promise<void> {
-    const { maxOpacity } = getOpacityConfig();
-    await this.setTo(maxOpacity);
+    const { minOpacity, maxOpacity } = getOpacityConfig();
+    this.target = clamp(maxOpacity, minOpacity, 1);
+    await this.flush(true);
   }
 
   private async setTo(value: number, min?: number, max?: number): Promise<void> {
@@ -125,14 +136,15 @@ export class OpacityService {
    * Apply the latest target, collapsing anything queued while a backend runs.
    * Held keybindings must never stack subprocesses.
    */
-  private async flush(): Promise<void> {
+  private async flush(force = false): Promise<void> {
     if (this.flushing) {
       return;
     }
     this.flushing = true;
 
     try {
-      while (this.target !== this.applied) {
+      while (force || this.target !== this.applied) {
+        force = false;
         const value = this.target;
         const { backend, reason } = await this.resolveBackend();
         if (!backend) {

@@ -28,6 +28,8 @@ export interface OpacityBackend {
   readonly id: BackendId;
   readonly displayName: string;
   isAvailable(): Promise<Availability>;
+  /** One-time compositor setup (install a resident effect, etc.). */
+  ensureReady?(value: number): Promise<void>;
   /** Set absolute opacity. The caller has already clamped `value`. */
   apply(value: number): Promise<ApplyResult>;
   /** Read back the live value, when the compositor exposes one. */

@@ -98,16 +98,22 @@
       {
         "command": "diffuse.decreaseOpacity",
         "key": "ctrl+alt+z",
+        "linux": "ctrl+alt+z",
+        "win": "ctrl+alt+z",
         "mac": "cmd+alt+z"
       },
       {
         "command": "diffuse.increaseOpacity",
         "key": "ctrl+alt+c",
+        "linux": "ctrl+alt+c",
+        "win": "ctrl+alt+c",
         "mac": "cmd+alt+c"
       },
       {
         "command": "diffuse.resetOpacity",
         "key": "ctrl+alt+x",
+        "linux": "ctrl+alt+x",
+        "win": "ctrl+alt+x",
         "mac": "cmd+alt+x"
       }
     ],
@@ -133,7 +139,7 @@
           "default": 1,
           "minimum": 0.05,
           "maximum": 1,
-          "description": "Maximum window opacity."
+          "description": "Maximum window opacity. Reset (Ctrl+Alt+X) returns to this value."
         },
         "diffuse.backend": {
           "type": "string",
@@ -149,7 +155,7 @@
           ],
           "enumDescriptions": [
             "Detect the platform and pick the best available backend.",
-            "KDE Plasma Wayland via ephemeral KWin scripts.",
+            "KDE Plasma Wayland via a resident KWin effect (live Effect.Opacity).",
             "Sway via swaymsg.",
             "Any X11 session (and XWayland) via xprop _NET_WM_WINDOW_OPACITY.",
             "GNOME Wayland via the companion GNOME Shell extension.",
