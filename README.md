@@ -1,39 +1,38 @@
 # Diffuse
 
 [![Open VSX](https://img.shields.io/open-vsx/v/krakjn/diffuse?label=Open%20VSX&logo=eclipse)](https://open-vsx.org/extension/krakjn/diffuse)
+[![Downloads](https://img.shields.io/open-vsx/dt/krakjn/diffuse?label=downloads&logo=eclipse)](https://open-vsx.org/extension/krakjn/diffuse)
+
 
 ![Diffuse](assets/icon.png)
 
-Adjust editor window transparency/opacity with keyboard shortcuts.
+Diffused light. Adjust window opacity on Linux [Wayland and X11], Windows, and macOS
 
 | Shortcut | Action |
 |----------|--------|
 | `Ctrl+Alt+Z` (`Cmd+Option+Z` on macOS) | Decrease opacity (more transparent) |
 | `Ctrl+Alt+C` (`Cmd+Option+C` on macOS) | Increase opacity (less transparent) |
-| `Cmd+Option+X` | Reset to fully opaque (macOS) |
+| `Ctrl+Alt+X` (`Cmd+Option+X` on macOS) | Reset to fully opaque |
 
 ## Supported platforms
 
-| Platform | Backend | Status |
-|----------|---------|--------|
-| KDE Plasma Wayland | KWin script over D-Bus | Supported |
-| Sway | `swaymsg` | Supported |
-| X11, any desktop | `xprop` | Supported |
-| GNOME X11 | `xprop` | Confirmed |
-| GNOME Wayland | XWayland via `xprop`, else companion Shell extension | Supported |
-| Windows | `SetLayeredWindowAttributes` | Supported |
-| macOS | Opt-in Electron `out/main.js` patch | [Supported](#macos) |
+| Platform |  Status |
+|----------| --------|
+| Linux: KDE [Wayland,X11] | Supported |
+| Linux: GNOME [Wayland,X11] | Supported |
+| Linux: Sway [Wayland,X11] | Supported |
+| Linux: any desktop [X11] | Supported |
+| Windows | Supported |
+| macOS | [Supported](#macos) |
 
 Diffuse probes the candidates for your session in order and uses the first that
-works, so KDE on X11, GNOME on X11, XFCE, i3, MATE, and Cinnamon all land on
-`xprop` without any desktop-specific code. Set `diffuse.backend` to skip probing
-and force one.
-
-Hyprland already owns window opacity in its own config. Diffuse detects that
-session and stays out of the way.
+works. Set `diffuse.backend` to skip probing and force one.
 
 X11 opacity needs a compositing manager — picom, xcompmgr, or your desktop's
 built-in compositor. Without one the property is set and then ignored.
+
+> NOTE: Hyprland already owns window opacity in its own config. Diffuse detects that
+session and stays out of the way.
 
 ## Supported editors
 
@@ -63,42 +62,17 @@ VSCodium, Code - OSS, Windsurf, and Antigravity.
 
 ## Credits
 
-Diffuse is inspired by [GlassIt-VSC](https://github.com/hikarin522/GlassIt-VSC)
-by [hikarin522](https://github.com/hikarin522) — the extension that proved editor
-transparency was worth having, and whose `Ctrl+Alt+Z` / `Ctrl+Alt+C` bindings
-Diffuse deliberately keeps so muscle memory carries over. GlassIt-VSC is MIT
-licensed and is itself a port of the
-[GlassIt](https://packagecontrol.io/packages/GlassIt) plugin for Sublime Text.
+Diffuse was inspired by [GlassIt-VSC](https://github.com/hikarin522/GlassIt-VSC).
+The move to wayland prevented GlassIt from working, which was the motivation of `diffuse`.
 
-The macOS backend follows [Glassy](https://github.com/optimistengineer/glassy)
-by [optimistengineer](https://github.com/optimistengineer): patch the editor's
-Electron main process so `BrowserWindow.setOpacity()` runs inside the process
-that owns the window. Glassy is MIT licensed.
+Hunting around for macOS support, I found [Glassy](https://github.com/optimistengineer/glassy)
+really elegant approach which I emulated in `diffuse`
 
-### MIT License
+### [MIT License](/LICENSE)
 
 ## NOTES:
 
-### GNOME
-
-GNOME on X11 is confirmed: Mutter honours `_NET_WM_WINDOW_OPACITY`, so the
-`xprop` backend is enough.
-
-On GNOME Wayland, Electron normally still runs through XWayland and the same
-path works. If your editor is a native Wayland client, run **Diffuse: Install
-GNOME Shell Extension**, enable it in the Extensions app, and log out and back
-in.
-
 ### macOS
-
-macOS has no public API for changing another application's window opacity, and
-the private one does not work from outside the owning process. Calling
-`CGSSetWindowAlpha` on another app's window returns `kCGErrorSuccess` and
-changes nothing — the WindowServer refuses silently rather than erroring.
-
-Diffuse therefore takes the same opt-in path as Glassy. It does **not** use
-[yabai](https://github.com/koekeishiya/yabai) and does **not** ask you to
-weaken System Integrity Protection.
 
 1. Open the Command Palette (`Cmd+Shift+P`)
 2. Run **Diffuse: Enable macOS Transparency**

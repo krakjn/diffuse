@@ -12,8 +12,8 @@ prefix = ""
 #   - special keys: "year", "month", "day" are populated based on current calendar date
 [base]
 delimiter = "."
-major = 0
-minor = 3
+major = 1
+minor = 1
 patch = 0
 
 [phase]
@@ -31,7 +31,7 @@ separator = "+"
 
 [timestamp]
 format = "%Y-%m-%d %H:%M:%S %Z"
-last = "2026-09-09 00:28:33 UTC"
+last = "2026-09-11 14:35:25 UTC"
 
 # printed label: shown but never tracked, useful injecting dynamic values
 #  - position: "before-prefix", "after-prefix",

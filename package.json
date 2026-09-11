@@ -1,8 +1,8 @@
 {
   "name": "diffuse",
   "displayName": "Diffuse",
-  "description": "Adjust editor window opacity on Linux, Windows, and macOS",
-  "version": "0.3.0",
+  "description": "Diffused light. Adjust window opacity on Linux [Wayland and X11], Windows, and macOS",
+  "version": "1.1.0",
   "publisher": "krakjn",
   "license": "MIT",
   "repository": {
@@ -107,6 +107,7 @@
       },
       {
         "command": "diffuse.resetOpacity",
+        "key": "ctrl+alt+x",
         "mac": "cmd+alt+x"
       }
     ],
