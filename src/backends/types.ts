@@ -2,7 +2,14 @@ export type Platform = "linux" | "windows" | "macos";
 
 export type Session = "wayland" | "x11" | "native" | "unknown";
 
-export type BackendId = "kde" | "sway" | "x11" | "gnome" | "windows" | "macos";
+export type BackendId =
+  | "kde"
+  | "hyprland"
+  | "sway"
+  | "x11"
+  | "gnome"
+  | "windows"
+  | "macos";
 
 export interface DetectResult {
   platform: Platform;
@@ -34,6 +41,8 @@ export interface OpacityBackend {
   apply(value: number): Promise<ApplyResult>;
   /** Read back the live value, when the compositor exposes one. */
   read?(): Promise<number | null>;
+  /** Compositor default for reset, when it differs from diffuse.maxOpacity. */
+  resetTarget?(): number | undefined;
   dispose?(): void;
 }
 

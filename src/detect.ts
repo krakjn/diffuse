@@ -41,9 +41,7 @@ const LINUX_DESKTOPS: LinuxDesktopSpec[] = [
   {
     displayName: "Hyprland",
     detect: () => !!process.env.HYPRLAND_INSTANCE_SIGNATURE,
-    wayland: [],
-    skipReason:
-      "Hyprland already manages window opacity; Diffuse does not override it.",
+    wayland: ["hyprland", "x11"],
   },
   {
     displayName: "Sway",

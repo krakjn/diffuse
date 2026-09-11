@@ -4,6 +4,7 @@ import {
   ensureEffectInstalled,
   isKwinEffectReachable,
   readEffectTarget,
+  resetKdeCaches,
   setEffectTarget,
 } from "./kwin-effect-runner";
 
@@ -31,5 +32,9 @@ export class KdeBackend implements OpacityBackend {
 
   async read(): Promise<number | null> {
     return readEffectTarget();
+  }
+
+  dispose(): void {
+    resetKdeCaches();
   }
 }

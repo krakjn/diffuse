@@ -24,6 +24,7 @@
     "x11",
     "kde",
     "plasma",
+    "hyprland",
     "sway",
     "gnome",
     "windows",
@@ -147,6 +148,7 @@
           "enum": [
             "auto",
             "kde",
+            "hyprland",
             "sway",
             "x11",
             "gnome",
@@ -156,6 +158,7 @@
           "enumDescriptions": [
             "Detect the platform and pick the best available backend.",
             "KDE Plasma Wayland via a resident KWin effect (live Effect.Opacity).",
+            "Hyprland 0.55+ via hyprctl Lua set_prop.",
             "Sway via swaymsg.",
             "Any X11 session (and XWayland) via xprop _NET_WM_WINDOW_OPACITY.",
             "GNOME Wayland via the companion GNOME Shell extension.",
@@ -175,8 +178,9 @@
   "scripts": {
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
-    "test": "tsc -p ./ && node out/backends/macos/patch-content.test.js && node out/backends/macos/patcher.test.js",
+    "test": "tsc -p ./ && node out/backends/macos/patch-content.test.js && node out/backends/macos/patcher.test.js && node out/backends/hyprland/hyprland.test.js",
     "vscode:prepublish": "npm run compile",
+    "vscode:uninstall": "node ./out/uninstall.js",
     "package": "vsce package --no-dependencies --allow-missing-repository --out dist"
   },
   "devDependencies": {

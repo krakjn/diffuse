@@ -48,16 +48,24 @@ function applyOpacity(win, reason) {
     return;
   }
 
-  cancelOpacity(win);
   const target = readTarget();
+  cancelOpacity(win);
 
-  win.diffuseOpacityAnimation = set({
-    window: win,
-    duration: 1,
-    type: Effect.Opacity,
-    from: target,
-    to: target,
-  });
+  // An Opacity animation keeps prePaintWindow marking the window translucent,
+  // so at full opacity leave none behind.
+  if (target < 1.0) {
+    win.diffuseOpacityAnimation = set({
+      window: win,
+      duration: 1,
+      type: Effect.Opacity,
+      from: target,
+      to: target,
+    });
+  }
+
+  // cancel() schedules no repaint and set() only schedules a layer repaint,
+  // which the scene culls once the window is opaque again.
+  effects.addRepaintFull();
 
   print(
     "DIFFUSE:" +

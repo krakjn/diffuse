@@ -1,6 +1,7 @@
 import type { ExtensionContext, OutputChannel } from "vscode";
 import { workspace } from "vscode";
 import type { BackendRegistry } from "./backends/registry";
+import { resetKdeCaches } from "./backends/kde/kwin-effect-runner";
 import type { DetectResult, OpacityBackend } from "./backends/types";
 import { detectEnvironment, getDetectionSummary, resolveCandidates } from "./detect";
 import { noBackendMessage } from "./messages";
@@ -111,6 +112,7 @@ export class OpacityService {
     this.detectResult = detectEnvironment();
     this.resolution = undefined;
     this.failure = undefined;
+    resetKdeCaches();
     await this.initialize();
   }
 
@@ -122,7 +124,9 @@ export class OpacityService {
 
   async reset(): Promise<void> {
     const { minOpacity, maxOpacity } = getOpacityConfig();
-    this.target = clamp(maxOpacity, minOpacity, 1);
+    const { backend } = await this.resolveBackend();
+    const resetValue = backend?.resetTarget?.() ?? maxOpacity;
+    this.target = clamp(resetValue, minOpacity, 1);
     await this.flush(true);
   }
 
@@ -152,14 +156,16 @@ export class OpacityService {
           return;
         }
 
+        const started = Date.now();
         const result = await backend.apply(value);
+        const elapsed = Date.now() - started;
         this.applied = value;
         await this.context.globalState.update(OPACITY_KEY, value);
         this.failure = undefined;
 
         const target = result.target ? ` target=${result.target}` : "";
         this.log.appendLine(
-          `opacity ${toPercent(value)}% via ${backend.id}${target}`
+          `opacity ${toPercent(value)}% via ${backend.id}${target} ${elapsed}ms`
         );
       }
     } catch (error) {

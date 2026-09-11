@@ -7,6 +7,7 @@ import {
   commandExists,
   execCommand,
   firstAvailableCommand,
+  tryExec,
 } from "../../util/exec";
 
 export const KWIN_EFFECT_ID = "diffuse_opacity";
@@ -21,9 +22,15 @@ const MISSING_HINTS: Record<string, string> = {
   qdbus: "qdbus not found (qt6-tools, or qdbus from kde-cli-tools)",
 };
 
-async function resolveQdbus(): Promise<string | null> {
-  return firstAvailableCommand(["qdbus6", "qdbus", "qdbus-qt6"]);
+interface KdeTools {
+  qdbus: string;
+  kwrite: string;
+  reconfigure: () => Promise<void>;
 }
+
+let tools: KdeTools | undefined;
+let installedForPath: string | undefined;
+let installLock: Promise<void> | undefined;
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -60,39 +67,99 @@ const EDITOR_CLASSES = ${JSON.stringify(EDITOR_CLASSES)};
   return source.replace(CLASSES_MARKER, block);
 }
 
-async function resolveKwriteconfig(): Promise<string | null> {
-  return firstAvailableCommand(["kwriteconfig6", "kwriteconfig5"]);
+function resetToolCache(): void {
+  tools = undefined;
 }
 
-async function resolveKreadconfig(): Promise<string | null> {
-  return firstAvailableCommand(["kreadconfig6", "kreadconfig5"]);
+/** Drop cached binaries so Show Environment re-probes after a package install. */
+export function resetKdeCaches(): void {
+  resetToolCache();
+  installedForPath = undefined;
+}
+
+async function resolveReconfigure(qdbus: string): Promise<() => Promise<void>> {
+  if (await commandExists("dbus-send")) {
+    return async () => {
+      const result = await tryExec("dbus-send", [
+        "--session",
+        "--type=method_call",
+        "--dest=org.kde.KWin",
+        "/Effects",
+        "org.kde.kwin.Effects.reconfigureEffect",
+        `string:${KWIN_EFFECT_ID}`,
+      ]);
+      if (!result.ok) {
+        throw new Error(result.stderr || "dbus-send reconfigureEffect failed");
+      }
+    };
+  }
+
+  if (await commandExists("gdbus")) {
+    return async () => {
+      const result = await tryExec("gdbus", [
+        "call",
+        "--session",
+        "--dest",
+        "org.kde.KWin",
+        "--object-path",
+        "/Effects",
+        "--method",
+        "org.kde.kwin.Effects.reconfigureEffect",
+        KWIN_EFFECT_ID,
+      ]);
+      if (!result.ok) {
+        throw new Error(result.stderr || "gdbus reconfigureEffect failed");
+      }
+    };
+  }
+
+  return async () => {
+    await execCommand(qdbus, [
+      "org.kde.KWin",
+      "/Effects",
+      "org.kde.kwin.Effects.reconfigureEffect",
+      KWIN_EFFECT_ID,
+    ]);
+  };
+}
+
+async function resolveTools(): Promise<KdeTools> {
+  if (tools) {
+    return tools;
+  }
+
+  if (!(await commandExists("kpackagetool6"))) {
+    throw new Error(MISSING_HINTS.kpackagetool6);
+  }
+
+  const kwrite = await firstAvailableCommand([
+    "kwriteconfig6",
+    "kwriteconfig5",
+  ]);
+  if (!kwrite) {
+    throw new Error(MISSING_HINTS.kwriteconfig);
+  }
+
+  const qdbus = await firstAvailableCommand(["qdbus6", "qdbus", "qdbus-qt6"]);
+  if (!qdbus) {
+    throw new Error(MISSING_HINTS.qdbus);
+  }
+
+  tools = {
+    qdbus,
+    kwrite,
+    reconfigure: await resolveReconfigure(qdbus),
+  };
+  return tools;
 }
 
 export async function missingEffectTools(): Promise<string | null> {
-  if (!(await commandExists("kpackagetool6"))) {
-    return MISSING_HINTS.kpackagetool6;
+  try {
+    await resolveTools();
+    return null;
+  } catch (error) {
+    return error instanceof Error ? error.message : String(error);
   }
-  if (!(await resolveKwriteconfig())) {
-    return MISSING_HINTS.kwriteconfig;
-  }
-  if (!(await resolveQdbus())) {
-    return MISSING_HINTS.qdbus;
-  }
-  return null;
-}
-
-async function resolveTools(): Promise<{ qdbus: string; kwrite: string }> {
-  const missing = await missingEffectTools();
-  if (missing) {
-    throw new Error(missing);
-  }
-
-  const qdbus = await resolveQdbus();
-  const kwrite = await resolveKwriteconfig();
-  if (!qdbus || !kwrite) {
-    throw new Error(missing ?? MISSING_HINTS.qdbus);
-  }
-  return { qdbus, kwrite };
 }
 
 async function isEffectLoaded(qdbus: string): Promise<boolean> {
@@ -151,14 +218,7 @@ async function installOrUpgradePackage(extensionPath: string): Promise<void> {
   }
 }
 
-async function loadEffectIfNeeded(
-  qdbus: string,
-  kwrite: string
-): Promise<void> {
-  if (await isEffectLoaded(qdbus)) {
-    return;
-  }
-
+async function loadEffect(qdbus: string, kwrite: string): Promise<void> {
   await execCommand(kwrite, [
     "--file",
     "kwinrc",
@@ -184,8 +244,18 @@ async function loadEffectIfNeeded(
   }
 }
 
-let installedForPath: string | undefined;
-let installLock: Promise<void> | undefined;
+/** Unload a live effect so kpackagetool upgrades are picked up without restarting KWin. */
+async function reloadEffect(qdbus: string, kwrite: string): Promise<void> {
+  if (await isEffectLoaded(qdbus)) {
+    await execCommand(qdbus, [
+      "org.kde.KWin",
+      "/Effects",
+      "org.kde.kwin.Effects.unloadEffect",
+      KWIN_EFFECT_ID,
+    ]);
+  }
+  await loadEffect(qdbus, kwrite);
+}
 
 /** Install or upgrade the effect once per extension path. Never unload on apply. */
 export async function ensureEffectInstalled(
@@ -199,7 +269,7 @@ export async function ensureEffectInstalled(
     installLock = (async () => {
       const { qdbus, kwrite } = await resolveTools();
       await installOrUpgradePackage(extensionPath);
-      await loadEffectIfNeeded(qdbus, kwrite);
+      await reloadEffect(qdbus, kwrite);
       installedForPath = extensionPath;
     })().finally(() => {
       installLock = undefined;
@@ -211,7 +281,7 @@ export async function ensureEffectInstalled(
 
 /** Update live opacity. The resident effect stays loaded and re-paints. */
 export async function setEffectTarget(target: number): Promise<void> {
-  const { qdbus, kwrite } = await resolveTools();
+  const { kwrite, reconfigure } = await resolveTools();
   await execCommand(kwrite, [
     "--file",
     "kwinrc",
@@ -221,16 +291,14 @@ export async function setEffectTarget(target: number): Promise<void> {
     "target",
     String(target),
   ]);
-  await execCommand(qdbus, [
-    "org.kde.KWin",
-    "/Effects",
-    "org.kde.kwin.Effects.reconfigureEffect",
-    KWIN_EFFECT_ID,
-  ]);
+  await reconfigure();
 }
 
 export async function readEffectTarget(): Promise<number | null> {
-  const kread = await resolveKreadconfig();
+  const kread = await firstAvailableCommand([
+    "kreadconfig6",
+    "kreadconfig5",
+  ]);
   if (!kread) {
     return null;
   }
@@ -252,20 +320,74 @@ export async function isKwinEffectReachable(): Promise<string | null> {
     return "KWin effect backend needs a Wayland session";
   }
 
-  const missing = await missingEffectTools();
-  if (missing) {
-    return missing;
-  }
-
-  const qdbus = await resolveQdbus();
-  if (!qdbus) {
-    return MISSING_HINTS.qdbus;
-  }
+  resetToolCache();
 
   try {
+    const { qdbus } = await resolveTools();
     await execCommand(qdbus, ["org.kde.KWin", "/Effects"]);
     return null;
-  } catch {
-    return "KWin Effects D-Bus interface is not reachable";
+  } catch (error) {
+    resetToolCache();
+    return error instanceof Error
+      ? error.message
+      : "KWin Effects D-Bus interface is not reachable";
   }
+}
+
+async function deleteKwinrcKey(
+  kwrite: string,
+  group: string,
+  key: string
+): Promise<void> {
+  await tryExec(kwrite, [
+    "--file",
+    "kwinrc",
+    "--group",
+    group,
+    "--key",
+    key,
+    "--delete",
+  ]);
+}
+
+/**
+ * Remove Diffuse from kwinrc and unload the effect. Used by vscode:uninstall.
+ * Missing tools are ignored so uninstall still succeeds off KDE.
+ */
+export async function uninstallKdeEffect(): Promise<void> {
+  const kwrite = await firstAvailableCommand([
+    "kwriteconfig6",
+    "kwriteconfig5",
+  ]);
+  const qdbus = await firstAvailableCommand(["qdbus6", "qdbus", "qdbus-qt6"]);
+
+  if (qdbus) {
+    try {
+      if (await isEffectLoaded(qdbus)) {
+        await execCommand(qdbus, [
+          "org.kde.KWin",
+          "/Effects",
+          "org.kde.kwin.Effects.unloadEffect",
+          KWIN_EFFECT_ID,
+        ]);
+      }
+    } catch {
+      // KWin may already be gone.
+    }
+  }
+
+  if (kwrite) {
+    await deleteKwinrcKey(kwrite, "Plugins", `${KWIN_EFFECT_ID}Enabled`);
+    await deleteKwinrcKey(kwrite, CONFIG_GROUP, "target");
+  }
+
+  if (await commandExists("kpackagetool6")) {
+    await tryExec("kpackagetool6", ["-t", "KWin/Effect", "-r", KWIN_EFFECT_ID]);
+  }
+
+  if (qdbus) {
+    await tryExec(qdbus, ["org.kde.KWin", "/KWin", "reconfigure"]);
+  }
+
+  resetKdeCaches();
 }

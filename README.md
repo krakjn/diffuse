@@ -12,15 +12,18 @@ Diffused light. Adjust window opacity on Linux [Wayland and X11], Windows, and m
 |----------|--------|
 | `Ctrl+Alt+Z` (`Cmd+Option+Z` on macOS) | Decrease opacity (more transparent) |
 | `Ctrl+Alt+C` (`Cmd+Option+C` on macOS) | Increase opacity (less transparent) |
-| `Ctrl+Alt+X` (`Cmd+Option+X` on macOS) | Reset to `diffuse.maxOpacity` (default 1.0) |
+| `Ctrl+Alt+X` (`Cmd+Option+X` on macOS) | Reset to `diffuse.maxOpacity` (default 1.0). On Hyprland, reset returns to `decoration.active_opacity` from the compositor config. |
 
 On Linux, those chords never reach the editor if the desktop already owns them. For example, KDE Plasma's **Mouse Tiler** KWin shortcuts default to `Ctrl+Alt+C` / `Ctrl+Alt+X`. Clear or remap them under **System Settings → Keyboard → Shortcuts → KWin**. Command Palette **Diffuse: Reset Opacity** still works either way.
+
+Uninstalling Diffuse on KDE removes the `diffuse_opacity` KWin effect and deletes its keys from `kwinrc` via `kwriteconfig`.
 
 ## Supported platforms
 
 | Platform |  Status |
 |----------| --------|
 | Linux: KDE [Wayland,X11] | Supported |
+| Linux: Hyprland 0.55+ [Wayland] | Supported |
 | Linux: GNOME [Wayland,X11] | Supported |
 | Linux: Sway [Wayland,X11] | Supported |
 | Linux: any desktop [X11] | Supported |
@@ -32,9 +35,6 @@ works. Set `diffuse.backend` to skip probing and force one.
 
 X11 opacity needs a compositing manager — picom, xcompmgr, or your desktop's
 built-in compositor. Without one the property is set and then ignored.
-
-> NOTE: Hyprland already owns window opacity in its own config. Diffuse detects that
-session and stays out of the way.
 
 ## Supported editors
 
@@ -58,7 +58,7 @@ VSCodium, Code - OSS, Windsurf, and Antigravity.
 |---------|---------|---------|
 | `diffuse.step` | `0.025` | Opacity change per keypress |
 | `diffuse.minOpacity` | `0.25` | Lower bound |
-| `diffuse.maxOpacity` | `1.0` | Upper bound; reset returns here |
+| `diffuse.maxOpacity` | `1.0` | Upper bound; reset returns here except on Hyprland |
 | `diffuse.backend` | `auto` | Force a backend instead of probing |
 | `diffuse.macosAutoRestartAfterUpdate` | `false` | On macOS, restart automatically after an editor update so the patch is loaded |
 
@@ -93,6 +93,32 @@ the prompt.
 To undo: **Diffuse: Disable macOS Transparency**, then restart. Uninstall the
 extension only after the patch is gone.
 
+### Hyprland
+
+Keybinds change only the focused editor window (`address:`). Closing that
+window drops the override; a new window comes back at Hyprland's
+`decoration.active_opacity`. Diffuse does not edit `hyprland.lua`.
+
+To persist a value across window close without touching the rest of your
+config, add one line to `~/.config/hypr/hyprland.lua`:
+
+```lua
+require("diffuse") -- ~/.config/hypr/diffuse.lua
+```
+
+```lua
+-- ~/.config/hypr/diffuse.lua
+hl.window_rule({
+  name = "diffuse-editors",
+  match = { class = "^(cursor|code|vscodium|code-oss)$" },
+  opacity = "0.85 override 0.85 override 0.85 override",
+})
+```
+
+That rule is class-wide. The live shortcuts stay per-window.
+
+Hyprland older than 0.55 is not supported (Lua `set_prop` only).
+
 ### Known limitations
 
 - **macOS requires patching the editor.** That may trigger a modified or
@@ -111,4 +137,4 @@ extension only after the patch is gone.
   load the patch.
 - **X11 needs a compositor.** Without picom, xcompmgr, or the desktop's own
   compositor, `_NET_WM_WINDOW_OPACITY` is set and then ignored.
-- **Hyprland is left alone.** It already owns window opacity in its own config.
+- **Hyprland needs 0.55+.** Older releases do not speak the Lua dispatcher API.
