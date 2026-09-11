@@ -63,6 +63,11 @@ export class OpacityService {
     this.applied = stored;
   }
 
+  /** Current clamped target. Used by opt-in installers that write a sidecar config. */
+  get opacity(): number {
+    return this.target;
+  }
+
   /** Log the environment and seed state from the compositor when it can be read. */
   async initialize(): Promise<void> {
     this.log.appendLine(getDetectionSummary(this.detectResult));

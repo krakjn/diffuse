@@ -1,0 +1,19 @@
+---
+description: All git commits are authored by Tony B
+alwaysApply: true
+---
+
+Every git commit in this repository belongs to Tony B. Do not use Cursor Agent or any other identity as author or committer.
+
+- Name: `Tony B`
+- Email: `krakjn@gmail.com`
+
+Before committing, set the repo identity (once per clone) and pass it on the commit command:
+
+```bash
+git config user.name "Tony B"
+git config user.email "krakjn@gmail.com"
+git -c user.name="Tony B" -c user.email="krakjn@gmail.com" commit --reset-author ...
+```
+
+Do not add a `Co-authored-by` trailer. The commit author is already Tony B.

@@ -6,7 +6,7 @@ export function noBackendMessage(detected: DetectResult): string {
     return detected.skipReason;
   }
   if (detected.candidates.length === 0) {
-    return `No opacity backend for ${detected.desktop}. Diffuse needs a Wayland compositor with an opacity API, an X11 session, or Windows.`;
+    return `No opacity backend for ${detected.desktop}. Diffuse needs a Wayland compositor with an opacity API, an X11 session, Windows, or the macOS editor patch.`;
   }
   return `No usable opacity backend for ${detected.desktop}.`;
 }

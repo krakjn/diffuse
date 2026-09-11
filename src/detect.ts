@@ -125,10 +125,7 @@ export function detectEnvironment(): DetectResult {
       platform,
       session: "native",
       desktop: "macOS",
-      candidates: [],
-      skipReason:
-        "macOS does not let one application change another's window opacity. " +
-        "Diffuse has no macOS backend.",
+      candidates: ["macos"],
     };
   }
 
