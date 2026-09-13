@@ -2,6 +2,10 @@
  * Diffuse KWin effect — live compositor opacity via Effect.Opacity.
  * target is read from effect config on every change; the effect stays loaded.
  * EDITOR_CLASSES is injected at install from src/targets.ts.
+ *
+ * A live Opacity animation takes a paint ref that overrides
+ * PAINT_DISABLED_BY_DESKTOP / MINIMIZE, so we only hold it while the
+ * window is actually visible.
  */
 
 "use strict";
@@ -36,11 +40,29 @@ function matchesEditor(win) {
   return false;
 }
 
+function desiredOpacity(win) {
+  const target = readTarget();
+  if (target >= 1.0) {
+    return undefined;
+  }
+  if (!win.onCurrentDesktop) {
+    return undefined;
+  }
+  if (win.minimized) {
+    return undefined;
+  }
+  if (win.hiddenByShowDesktop) {
+    return undefined;
+  }
+  return target;
+}
+
 function cancelOpacity(win) {
   if (win.diffuseOpacityAnimation !== undefined) {
     cancel(win.diffuseOpacityAnimation);
     win.diffuseOpacityAnimation = undefined;
   }
+  win.diffuseOpacityTarget = undefined;
 }
 
 function applyOpacity(win, reason) {
@@ -48,19 +70,22 @@ function applyOpacity(win, reason) {
     return;
   }
 
-  const target = readTarget();
+  const want = desiredOpacity(win);
+  if (want === win.diffuseOpacityTarget) {
+    return;
+  }
+
   cancelOpacity(win);
 
-  // An Opacity animation keeps prePaintWindow marking the window translucent,
-  // so at full opacity leave none behind.
-  if (target < 1.0) {
+  if (want !== undefined) {
     win.diffuseOpacityAnimation = set({
       window: win,
       duration: 1,
       type: Effect.Opacity,
-      from: target,
-      to: target,
+      from: want,
+      to: want,
     });
+    win.diffuseOpacityTarget = want;
   }
 
   // cancel() schedules no repaint and set() only schedules a layer repaint,
@@ -74,7 +99,8 @@ function applyOpacity(win, reason) {
         reason: reason,
         fullScreen: win.fullScreen,
         windowClass: windowClass(win),
-        target: target,
+        target: want === undefined ? readTarget() : want,
+        pinned: want !== undefined,
       })
   );
 }
@@ -97,7 +123,11 @@ function watchWindow(win) {
   });
 
   win.windowDesktopsChanged.connect(function () {
-    applyOpacity(win, "desktopChanged");
+    applyOpacity(win, "windowDesktopsChanged");
+  });
+
+  win.minimizedChanged.connect(function () {
+    applyOpacity(win, "minimizedChanged");
   });
 }
 
@@ -115,6 +145,13 @@ function init() {
   effects.windowClosed.connect(cancelOpacity);
   effects.windowActivated.connect(function (win) {
     applyOpacity(win, "windowActivated");
+  });
+
+  effects.desktopChanged.connect(function () {
+    refreshAll("currentDesktopChanged");
+  });
+  effects.showingDesktopChanged.connect(function () {
+    refreshAll("showingDesktopChanged");
   });
 
   effect.configChanged.connect(function () {

@@ -8,6 +8,8 @@
 
 Diffused light. Adjust window opacity on Linux [Wayland and X11], Windows, and macOS
 
+![image](/assets/example.png)
+
 | Shortcut | Action |
 |----------|--------|
 | `Ctrl+Alt+Z` (`Cmd+Option+Z` on macOS) | Decrease opacity (more transparent) |
@@ -16,7 +18,9 @@ Diffused light. Adjust window opacity on Linux [Wayland and X11], Windows, and m
 
 On Linux, those chords never reach the editor if the desktop already owns them. For example, KDE Plasma's **Mouse Tiler** KWin shortcuts default to `Ctrl+Alt+C` / `Ctrl+Alt+X`. Clear or remap them under **System Settings → Keyboard → Shortcuts → KWin**. Command Palette **Diffuse: Reset Opacity** still works either way.
 
-Uninstalling Diffuse on KDE removes the `diffuse_opacity` KWin effect and deletes its keys from `kwinrc` via `kwriteconfig`.
+Uninstalling Diffuse on KDE removes the `diffuse_opacity` KWin effect and deletes its keys from `kwinrc` via `kwriteconfig`. On Plasma Wayland the editor stays composited while it is translucent and visible (no direct scanout).
+
+### [CHANGELOG](#changelog)
 
 ## Supported platforms
 
@@ -138,3 +142,23 @@ Hyprland older than 0.55 is not supported (Lua `set_prop` only).
 - **X11 needs a compositor.** Without picom, xcompmgr, or the desktop's own
   compositor, `_NET_WM_WINDOW_OPACITY` is set and then ignored.
 - **Hyprland needs 0.55+.** Older releases do not speak the Lua dispatcher API.
+
+# CHANGELOG
+
+## 1.3.0
+
+- fix KDE windowing bug: upon switching workspaces the code window would follow this has been resolved
+
+## 1.2.0
+
+- fix full screen bug in kde
+- added hyprland support!
+
+## 1.1.0
+
+- Added support for macOS
+- provided helpers to warn users upon install
+
+
+## 1.0.0
+- Full support for Linux and Windows

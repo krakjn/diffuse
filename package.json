@@ -2,7 +2,7 @@
   "name": "diffuse",
   "displayName": "Diffuse",
   "description": "Diffused light. Adjust window opacity on Linux [Wayland and X11], Windows, and macOS",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "publisher": "krakjn",
   "license": "MIT",
   "repository": {
